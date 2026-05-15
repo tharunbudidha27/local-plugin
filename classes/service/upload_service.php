@@ -31,37 +31,23 @@ class upload_service {
     ): \stdClass {
         $this->assert_drm_gate($drm_required);
 
-        $cache = \cache::make('local_fastpix', 'upload_dedup');
-        $hash_key = $this->dedup_key($userid, $metadata);
-
         // Dedup window: same (userid, filename, size) within 60s returns the
         // existing session.
-        $existing_id = $cache->get($hash_key);
-        if (is_int($existing_id) || (is_string($existing_id) && ctype_digit($existing_id))) {
-            $existing = $this->lookup_session((int)$existing_id);
-            if ($existing !== null && $existing->expires_at > time()) {
-                return $this->build_response($existing, deduped: true);
-            }
+        $cache = \cache::make('local_fastpix', 'upload_dedup');
+        $hash_key = $this->dedup_key($userid, $metadata);
+        $cached = $this->dedup_hit($cache, $hash_key);
+        if ($cached !== null) {
+            return $cached;
         }
 
-        $owner_hash      = $this->owner_hash($userid);
-        $access_policy   = $this->resolve_access_policy($drm_required, $access_policy);
-        $max_resolution  = $this->resolve_max_resolution($max_resolution);
-        $drm_config_id   = $access_policy === 'drm'
-            ? feature_flag_service::instance()->drm_configuration_id()
-            : null;
-
-        $fastpix_metadata = [
-            'moodle_owner_userhash' => $owner_hash,
-            'moodle_site_url'       => (new \moodle_url('/'))->out(false),
-        ];
+        $params = $this->resolve_upload_params($userid, $drm_required, $access_policy, $max_resolution);
 
         $response = \local_fastpix\api\gateway::instance()->input_video_direct_upload(
-            $owner_hash,
-            $fastpix_metadata,
-            $access_policy,
-            $drm_config_id,
-            $max_resolution,
+            $params['owner_hash'],
+            $params['fastpix_metadata'],
+            $params['access_policy'],
+            $params['drm_config_id'],
+            $params['max_resolution'],
         );
 
         $upload_id = (string)($response->data->uploadId ?? $response->uploadId ?? '');
@@ -88,40 +74,26 @@ class upload_service {
     ): \stdClass {
         // SSRF guard runs BEFORE any gateway call (rule S6).
         $this->assert_ssrf_safe($source_url);
-
         $this->assert_drm_gate($drm_required);
 
         // Dedup window: same (userid, source_url) within 60s returns the
         // existing session row. Mirrors the file-upload dedup contract (W11).
         $cache = \cache::make('local_fastpix', 'upload_dedup');
         $hash_key = $this->dedup_key_url($userid, $source_url);
-        $existing_id = $cache->get($hash_key);
-        if (is_int($existing_id) || (is_string($existing_id) && ctype_digit($existing_id))) {
-            $existing = $this->lookup_session((int)$existing_id);
-            if ($existing !== null && $existing->expires_at > time()) {
-                return $this->build_response($existing, deduped: true);
-            }
+        $cached = $this->dedup_hit($cache, $hash_key);
+        if ($cached !== null) {
+            return $cached;
         }
 
-        $owner_hash      = $this->owner_hash($userid);
-        $access_policy   = $this->resolve_access_policy($drm_required, $access_policy);
-        $max_resolution  = $this->resolve_max_resolution($max_resolution);
-        $drm_config_id   = $access_policy === 'drm'
-            ? feature_flag_service::instance()->drm_configuration_id()
-            : null;
-
-        $fastpix_metadata = [
-            'moodle_owner_userhash' => $owner_hash,
-            'moodle_site_url'       => (new \moodle_url('/'))->out(false),
-        ];
+        $params = $this->resolve_upload_params($userid, $drm_required, $access_policy, $max_resolution);
 
         $response = \local_fastpix\api\gateway::instance()->media_create_from_url(
             $source_url,
-            $owner_hash,
-            $fastpix_metadata,
-            $access_policy,
-            $drm_config_id,
-            $max_resolution,
+            $params['owner_hash'],
+            $params['fastpix_metadata'],
+            $params['access_policy'],
+            $params['drm_config_id'],
+            $params['max_resolution'],
         );
 
         $upload_id = (string)($response->data->id ?? $response->id ?? '');
@@ -136,6 +108,55 @@ class upload_service {
         $cache->set($hash_key, $session->id);
 
         return $this->build_response($session, deduped: false);
+    }
+
+    /**
+     * Common dedup-cache short-circuit shared by both session-creation paths.
+     * Returns the cached session response if a non-expired row exists for the
+     * supplied hash key; null otherwise. Caller still owns the cache->set on
+     * the new session id after a fresh insert.
+     */
+    private function dedup_hit(\cache $cache, string $hash_key): ?\stdClass {
+        $existing_id = $cache->get($hash_key);
+        if (is_int($existing_id) || (is_string($existing_id) && ctype_digit($existing_id))) {
+            $existing = $this->lookup_session((int)$existing_id);
+            if ($existing !== null && $existing->expires_at > time()) {
+                return $this->build_response($existing, deduped: true);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve the parameters used by both file-upload and URL-pull session
+     * creation paths: owner hash, effective access policy, effective max
+     * resolution, DRM config id (only populated when policy='drm'), and the
+     * fastpix_metadata bag attached to the gateway call.
+     *
+     * @return array{owner_hash:string,access_policy:string,max_resolution:string,drm_config_id:?string,fastpix_metadata:array<string,string>}
+     */
+    private function resolve_upload_params(
+        int $userid,
+        bool $drm_required,
+        ?string $access_policy,
+        ?string $max_resolution,
+    ): array {
+        $owner_hash     = $this->owner_hash($userid);
+        $access_policy  = $this->resolve_access_policy($drm_required, $access_policy);
+        $max_resolution = $this->resolve_max_resolution($max_resolution);
+        $drm_config_id  = $access_policy === 'drm'
+            ? feature_flag_service::instance()->drm_configuration_id()
+            : null;
+        return [
+            'owner_hash'       => $owner_hash,
+            'access_policy'    => $access_policy,
+            'max_resolution'   => $max_resolution,
+            'drm_config_id'    => $drm_config_id,
+            'fastpix_metadata' => [
+                'moodle_owner_userhash' => $owner_hash,
+                'moodle_site_url'       => (new \moodle_url('/'))->out(false),
+            ],
+        ];
     }
 
     // ---- Helpers ---------------------------------------------------------
