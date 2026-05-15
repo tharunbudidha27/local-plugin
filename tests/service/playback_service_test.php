@@ -88,7 +88,7 @@ public function test_resolve_returns_payload_for_ready_asset(): void {
 
     $payload = playback_service::resolve($asset->fastpix_id, 42);
 
-    $this->assertSame($asset->playbackid, $payload->playbackid);
+    $this->assertSame($asset->playback_id, $payload->playbackid);
     $this->assertNotEmpty($payload->playbacktoken);
     $this->assertGreaterThan(time(), $payload->expiresatts);
     $this->assertFalse($payload->drmrequired);

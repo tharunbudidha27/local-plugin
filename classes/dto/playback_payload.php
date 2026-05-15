@@ -46,11 +46,17 @@ class playback_payload {
      * @param bool $defaultshowcaptions Whether captions are on by default.
      */
     public function __construct(
+        /** @var string Asset playback ID. */
         public readonly string $playbackid,
+        /** @var string Signed playback JWT. */
         public readonly string $playbacktoken,
+        /** @var int Unix timestamp when the JWT expires. */
         public readonly int $expiresatts,
+        /** @var bool Whether DRM is required for playback. */
         public readonly bool $drmrequired,
+        /** @var ?string Optional accent colour (CSS string). */
         public readonly ?string $accentcolor,
+        /** @var bool Whether captions are on by default. */
         public readonly bool $defaultshowcaptions,
     ) {
     }

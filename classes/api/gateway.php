@@ -80,8 +80,11 @@ class gateway {
      * @param credential_service $credentials Credential lookup for apikey/apisecret.
      */
     private function __construct(
+        /** @var \core\http_client The HTTP client used for FastPix requests. */
         private \core\http_client $http,
+        /** @var \cache_application MUC cache holding circuit-breaker state. */
         private \cache_application $breakercache,
+        /** @var credential_service Credential lookup for apikey/apisecret. */
         private credential_service $credentials,
     ) {
     }
