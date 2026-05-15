@@ -65,7 +65,7 @@ final class gateway_test extends \advanced_testcase {
         $httpprop->setAccessible(true);
         $httpprop->setValue($instance, $httpmock);
 
-        $breakerprop = $reflection->getProperty('breaker_cache');
+        $breakerprop = $reflection->getProperty('breakercache');
         $breakerprop->setAccessible(true);
         $breakerprop->setValue($instance, \cache::make('local_fastpix', 'circuit_breaker'));
 
