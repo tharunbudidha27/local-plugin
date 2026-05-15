@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Webhook receiver endpoint for local_fastpix.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 // FastPix webhook endpoint. HMAC-authenticated; no session, no sesskey.
 // Thin HTTP wrapper around \local_fastpix\webhook\processor::process()
 // since 2026-05-06 — the verify-then-record-then-enqueue pipeline lives
@@ -15,15 +38,15 @@ require_once(__DIR__ . '/../../config.php');
 
 // 1. Body size guard (1 MiB cap). CONTENT_LENGTH may be missing on chunked
 //    transfer; treat absence as 0 (we still bail on empty body below).
-$content_length = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
-if ($content_length > 1048576) {
+$contentlength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+if ($contentlength > 1048576) {
     http_response_code(413);
     die();
 }
 
 // 2. Read raw body BEFORE any framework parsing.
-$raw_body = file_get_contents('php://input');
-if ($raw_body === false) {
+$rawbody = file_get_contents('php://input');
+if ($rawbody === false) {
     http_response_code(400);
     die();
 }
@@ -34,13 +57,13 @@ if ($raw_body === false) {
 //     return 200 so FastPix accepts the URL configuration; rejecting
 //     would mark the URL as invalid in their dashboard. Validation pings
 //     are NOT real events and are NOT inserted into the ledger.
-$trimmed_body = trim($raw_body);
-if ($trimmed_body === '' || $trimmed_body === '{}') {
+$trimmedbody = trim($rawbody);
+if ($trimmedbody === '' || $trimmedbody === '{}') {
     error_log(json_encode([
         'event'       => 'webhook.validation_ping',
         'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
         'time'        => time(),
-        'shape'       => $trimmed_body === '' ? 'empty' : 'curly_braces',
+        'shape'       => $trimmedbody === '' ? 'empty' : 'curly_braces',
     ]));
     http_response_code(200);
     die();
@@ -55,7 +78,7 @@ if (!\local_fastpix\service\rate_limiter_service::instance()->allow($ip)) {
 
 // 4. Delegate to the processor.
 $signature = $_SERVER['HTTP_FASTPIX_SIGNATURE'] ?? '';
-$result = \local_fastpix\webhook\processor::process($raw_body, $signature);
+$result = \local_fastpix\webhook\processor::process($rawbody, $signature);
 
 switch ($result['result']) {
     case \local_fastpix\webhook\processor::RESULT_ACCEPTED:

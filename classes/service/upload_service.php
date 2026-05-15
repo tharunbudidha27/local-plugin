@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Service: upload service.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\service;
 
 use local_fastpix\exception\drm_not_configured;
@@ -6,41 +29,55 @@ use local_fastpix\exception\ssrf_blocked;
 
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Service: upload.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class upload_service {
 
+    /** @var string Table. */
     private const TABLE = 'local_fastpix_upload_session';
+    /** @var int Session ttl seconds. */
     private const SESSION_TTL_SECONDS = 86400;
+    /** @var int Dedup ttl seconds. */
     private const DEDUP_TTL_SECONDS   = 60;
 
+    /** @var ?self $instance */
     private static ?self $instance = null;
 
+    /** Singleton accessor. */
     public static function instance(): self {
         return self::$instance ??= new self();
     }
 
+    /** Reset the singleton (used by tests). */
     public static function reset(): void {
         self::$instance = null;
     }
 
+    /** Create file upload session. */
     public function create_file_upload_session(
         int $userid,
         array $metadata,
-        bool $drm_required = false,
-        ?string $access_policy = null,
-        ?string $max_resolution = null,
+        bool $drmrequired = false,
+        ?string $accesspolicy = null,
+        ?string $maxresolution = null,
     ): \stdClass {
-        $this->assert_drm_gate($drm_required);
+        $this->assert_drm_gate($drmrequired);
 
         // Dedup window: same (userid, filename, size) within 60s returns the
         // existing session.
         $cache = \cache::make('local_fastpix', 'upload_dedup');
-        $hash_key = $this->dedup_key($userid, $metadata);
-        $cached = $this->dedup_hit($cache, $hash_key);
+        $hashkey = $this->dedup_key($userid, $metadata);
+        $cached = $this->dedup_hit($cache, $hashkey);
         if ($cached !== null) {
             return $cached;
         }
 
-        $params = $this->resolve_upload_params($userid, $drm_required, $access_policy, $max_resolution);
+        $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
         $response = \local_fastpix\api\gateway::instance()->input_video_direct_upload(
             $params['owner_hash'],
@@ -50,45 +87,46 @@ class upload_service {
             $params['max_resolution'],
         );
 
-        $upload_id = (string)($response->data->uploadId ?? $response->uploadId ?? '');
-        $upload_url = (string)($response->data->url ?? $response->url ?? '');
+        $uploadid = (string)($response->data->uploadId ?? $response->uploadId ?? '');
+        $uploadurl = (string)($response->data->url ?? $response->url ?? '');
 
         $session = $this->persist_session(
             userid:     $userid,
-            upload_id:  $upload_id,
-            upload_url: $upload_url,
+            upload_id:  $uploadid,
+            upload_url: $uploadurl,
             source_url: null,
         );
 
-        $cache->set($hash_key, $session->id);
+        $cache->set($hashkey, $session->id);
 
         return $this->build_response($session, deduped: false);
     }
 
+    /** Create url pull session. */
     public function create_url_pull_session(
         int $userid,
-        string $source_url,
-        bool $drm_required = false,
-        ?string $access_policy = null,
-        ?string $max_resolution = null,
+        string $sourceurl,
+        bool $drmrequired = false,
+        ?string $accesspolicy = null,
+        ?string $maxresolution = null,
     ): \stdClass {
         // SSRF guard runs BEFORE any gateway call (rule S6).
-        $this->assert_ssrf_safe($source_url);
-        $this->assert_drm_gate($drm_required);
+        $this->assert_ssrf_safe($sourceurl);
+        $this->assert_drm_gate($drmrequired);
 
         // Dedup window: same (userid, source_url) within 60s returns the
         // existing session row. Mirrors the file-upload dedup contract (W11).
         $cache = \cache::make('local_fastpix', 'upload_dedup');
-        $hash_key = $this->dedup_key_url($userid, $source_url);
-        $cached = $this->dedup_hit($cache, $hash_key);
+        $hashkey = $this->dedup_key_url($userid, $sourceurl);
+        $cached = $this->dedup_hit($cache, $hashkey);
         if ($cached !== null) {
             return $cached;
         }
 
-        $params = $this->resolve_upload_params($userid, $drm_required, $access_policy, $max_resolution);
+        $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
         $response = \local_fastpix\api\gateway::instance()->media_create_from_url(
-            $source_url,
+            $sourceurl,
             $params['owner_hash'],
             $params['fastpix_metadata'],
             $params['access_policy'],
@@ -96,16 +134,16 @@ class upload_service {
             $params['max_resolution'],
         );
 
-        $upload_id = (string)($response->data->id ?? $response->id ?? '');
+        $uploadid = (string)($response->data->id ?? $response->id ?? '');
 
         $session = $this->persist_session(
             userid:     $userid,
-            upload_id:  $upload_id,
+            upload_id:  $uploadid,
             upload_url: '',
-            source_url: $source_url,
+            source_url: $sourceurl,
         );
 
-        $cache->set($hash_key, $session->id);
+        $cache->set($hashkey, $session->id);
 
         return $this->build_response($session, deduped: false);
     }
@@ -116,10 +154,10 @@ class upload_service {
      * supplied hash key; null otherwise. Caller still owns the cache->set on
      * the new session id after a fresh insert.
      */
-    private function dedup_hit(\cache $cache, string $hash_key): ?\stdClass {
-        $existing_id = $cache->get($hash_key);
-        if (is_int($existing_id) || (is_string($existing_id) && ctype_digit($existing_id))) {
-            $existing = $this->lookup_session((int)$existing_id);
+    private function dedup_hit(\cache $cache, string $hashkey): ?\stdClass {
+        $existingid = $cache->get($hashkey);
+        if (is_int($existingid) || (is_string($existingid) && ctype_digit($existingid))) {
+            $existing = $this->lookup_session((int)$existingid);
             if ($existing !== null && $existing->expires_at > time()) {
                 return $this->build_response($existing, deduped: true);
             }
@@ -137,23 +175,23 @@ class upload_service {
      */
     private function resolve_upload_params(
         int $userid,
-        bool $drm_required,
-        ?string $access_policy,
-        ?string $max_resolution,
+        bool $drmrequired,
+        ?string $accesspolicy,
+        ?string $maxresolution,
     ): array {
-        $owner_hash     = $this->owner_hash($userid);
-        $access_policy  = $this->resolve_access_policy($drm_required, $access_policy);
-        $max_resolution = $this->resolve_max_resolution($max_resolution);
-        $drm_config_id  = $access_policy === 'drm'
+        $ownerhash     = $this->owner_hash($userid);
+        $accesspolicy  = $this->resolve_access_policy($drmrequired, $accesspolicy);
+        $maxresolution = $this->resolve_max_resolution($maxresolution);
+        $drmconfigid  = $accesspolicy === 'drm'
             ? feature_flag_service::instance()->drm_configuration_id()
             : null;
         return [
-            'owner_hash'       => $owner_hash,
-            'access_policy'    => $access_policy,
-            'max_resolution'   => $max_resolution,
-            'drm_config_id'    => $drm_config_id,
+            'owner_hash'       => $ownerhash,
+            'access_policy'    => $accesspolicy,
+            'max_resolution'   => $maxresolution,
+            'drm_config_id'    => $drmconfigid,
             'fastpix_metadata' => [
-                'moodle_owner_userhash' => $owner_hash,
+                'moodle_owner_userhash' => $ownerhash,
                 'moodle_site_url'       => (new \moodle_url('/'))->out(false),
             ],
         ];
@@ -168,20 +206,20 @@ class upload_service {
      * SQL clause to prevent horizontal privilege escalation. Callers with
      * the :uploadmedia capability can read THEIR sessions only, not others'.
      *
-     * @param int $session_id Local upload_session row id
+     * @param int $sessionid Local upload_session row id
      * @param int $userid     The user who must own the session
      * @return \stdClass
      * @throws \local_fastpix\exception\asset_not_found
      */
-    public function get_status(int $session_id, int $userid): \stdClass {
+    public function get_status(int $sessionid, int $userid): \stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, [
-            'id'     => $session_id,
+            'id'     => $sessionid,
             'userid' => $userid,
         ]);
         if (!$row) {
             throw new \local_fastpix\exception\asset_not_found(
-                "upload_session id={$session_id} for userid={$userid}"
+                "upload_session id={$sessionid} for userid={$userid}"
             );
         }
         return (object)[
@@ -204,13 +242,13 @@ class upload_service {
      * Whitelist enforced: anything other than public/private/drm coming
      * from config or caller falls back to 'private'.
      */
-    private function resolve_access_policy(bool $drm_required, ?string $caller_value): string {
-        if ($drm_required) {
+    private function resolve_access_policy(bool $drmrequired, ?string $callervalue): string {
+        if ($drmrequired) {
             return 'drm';
         }
         $allowed = ['public', 'private', 'drm'];
-        if ($caller_value !== null && $caller_value !== '' && in_array($caller_value, $allowed, true)) {
-            return $caller_value;
+        if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
+            return $callervalue;
         }
         $configured = (string)get_config('local_fastpix', 'default_access_policy');
         if (in_array($configured, $allowed, true)) {
@@ -226,10 +264,10 @@ class upload_service {
      *   2. admin config default  → max_resolution (set in settings)
      *   3. hard-coded fallback   → '1080p'
      */
-    private function resolve_max_resolution(?string $caller_value): string {
+    private function resolve_max_resolution(?string $callervalue): string {
         $allowed = ['480p', '720p', '1080p', '1440p', '2160p'];
-        if ($caller_value !== null && $caller_value !== '' && in_array($caller_value, $allowed, true)) {
-            return $caller_value;
+        if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
+            return $callervalue;
         }
         $configured = (string)get_config('local_fastpix', 'max_resolution');
         if (in_array($configured, $allowed, true)) {
@@ -238,12 +276,14 @@ class upload_service {
         return '1080p';
     }
 
-    private function assert_drm_gate(bool $drm_required): void {
-        if ($drm_required && !feature_flag_service::instance()->drm_enabled()) {
+    /** Assert drm gate. */
+    private function assert_drm_gate(bool $drmrequired): void {
+        if ($drmrequired && !feature_flag_service::instance()->drm_enabled()) {
             throw new drm_not_configured('drm_required_but_not_configured');
         }
     }
 
+    /** Dedup key. */
     private function dedup_key(int $userid, array $metadata): string {
         $filename = (string)($metadata['filename'] ?? '');
         $size     = (int)($metadata['size'] ?? 0);
@@ -256,11 +296,12 @@ class upload_service {
      * Dedup key for URL-pull sessions. Same (userid, source_url) within the
      * 60-second window returns the existing session_id with deduped=true.
      */
-    private function dedup_key_url(int $userid, string $source_url): string {
-        $logical = "urlpull:{$userid}:" . hash('sha256', $source_url);
+    private function dedup_key_url(int $userid, string $sourceurl): string {
+        $logical = "urlpull:{$userid}:" . hash('sha256', $sourceurl);
         return 'up_' . substr(hash('sha256', $logical), 0, 32);
     }
 
+    /** Owner hash. */
     private function owner_hash(int $userid): string {
         $salt = (string)get_config('local_fastpix', 'user_hash_salt');
         if ($salt === '') {
@@ -283,26 +324,28 @@ class upload_service {
         return hash_hmac('sha256', (string)$userid, $salt);
     }
 
+    /** Lookup session. */
     private function lookup_session(int $id): ?\stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, ['id' => $id]);
         return $row ?: null;
     }
 
+    /** Persist session. */
     private function persist_session(
         int $userid,
-        string $upload_id,
-        string $upload_url,
-        ?string $source_url,
+        string $uploadid,
+        string $uploadurl,
+        ?string $sourceurl,
     ): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[
             'userid'      => $userid,
-            'upload_id'   => $upload_id,
-            'upload_url'  => $upload_url,
+            'upload_id'   => $uploadid,
+            'upload_url'  => $uploadurl,
             'fastpix_id'  => null,
-            'source_url'  => $source_url,
+            'source_url'  => $sourceurl,
             'state'       => 'pending',
             'timecreated' => $now,
             'expires_at'  => $now + self::SESSION_TTL_SECONDS,
@@ -311,6 +354,7 @@ class upload_service {
         return $row;
     }
 
+    /** Build response. */
     private function build_response(\stdClass $session, bool $deduped): \stdClass {
         return (object)[
             'session_id' => (int)$session->id,
@@ -439,8 +483,8 @@ class upload_service {
                 throw new ssrf_blocked('blocked_ipv6:' . $ip);
             }
             // IPv4-mapped ::ffff:0:0/96 — first 80 bits = 0, next 16 = ffff
-            $mapped_prefix = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff";
-            if (substr($packed, 0, 12) === $mapped_prefix) {
+            $mappedprefix = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff";
+            if (substr($packed, 0, 12) === $mappedprefix) {
                 $unpacked = unpack('N', substr($packed, 12, 4));
                 if ($unpacked === false) {
                     throw new ssrf_blocked('blocked_ipv6:' . $ip);
@@ -450,8 +494,8 @@ class upload_service {
                 return;
             }
             // NAT64 64:ff9b::/96 — common synthesis prefix; trust nothing here
-            $nat64_prefix = "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00";
-            if (substr($packed, 0, 12) === $nat64_prefix) {
+            $nat64prefix = "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00";
+            if (substr($packed, 0, 12) === $nat64prefix) {
                 throw new ssrf_blocked('blocked_ipv6:' . $ip);
             }
             // AWS metadata over IPv6 (as documented for IMDSv2 dual-stack)

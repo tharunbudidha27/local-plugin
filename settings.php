@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Admin settings page for local_fastpix.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 // This file is part of local_fastpix.
 //
 // Admin settings page for the FastPix integration plugin.
@@ -65,7 +88,7 @@ if (!has_capability('local/fastpix:configurecredentials', context_system::instan
  * @param string $successfield    Result field used in success line (e.g. 'latency_ms').
  * @return string
  */
-$local_fastpix_button_html = static function (
+$localfastpixbuttonhtml = static function (
     string $buttonid,
     string $statusid,
     string $labelkey,
@@ -189,14 +212,14 @@ $settings->add(new admin_setting_configtext(
     PARAM_RAW_TRIMMED,
 ));
 
-$btn_test_connection_id = 'local_fastpix_test_connection_btn';
-$btn_test_connection_status_id = 'local_fastpix_test_connection_status';
+$btntestconnectionid = 'local_fastpix_test_connection_btn';
+$btntestconnectionstatusid = 'local_fastpix_test_connection_status';
 $settings->add(new admin_setting_description(
     'local_fastpix/test_connection_button',
     new lang_string('button_test_connection', 'local_fastpix'),
-    $local_fastpix_button_html(
-        $btn_test_connection_id,
-        $btn_test_connection_status_id,
+    $localfastpixbuttonhtml(
+        $btntestconnectionid,
+        $btntestconnectionstatusid,
         'button_test_connection',
         'button_test_connection_desc',
         'local_fastpix_test_connection',
@@ -291,11 +314,11 @@ if (trim((string)get_config('local_fastpix', 'webhook_secret_current')) === '') 
     ));
 }
 
-$webhook_url = (new moodle_url('/local/fastpix/webhook.php'))->out(false);
+$webhookurl = (new moodle_url('/local/fastpix/webhook.php'))->out(false);
 $settings->add(new admin_setting_description(
     'local_fastpix/webhook_url',
     new lang_string('setting_webhook_url', 'local_fastpix'),
-    \html_writer::tag('code', s($webhook_url)),
+    \html_writer::tag('code', s($webhookurl)),
 ));
 
 $settings->add(new \local_fastpix\admin\setting_webhook_secret(
@@ -308,23 +331,23 @@ $settings->add(new \local_fastpix\admin\setting_webhook_secret(
 // Last-rotation timestamp display (read-only operator hint). Only shown
 // when a rotation has actually occurred. Format via userdate so it
 // respects the operator's timezone / locale.
-$rotated_at = (int)get_config('local_fastpix', 'webhook_secret_rotated_at');
-if ($rotated_at > 0) {
+$rotatedat = (int)get_config('local_fastpix', 'webhook_secret_rotated_at');
+if ($rotatedat > 0) {
     $settings->add(new admin_setting_description(
         'local_fastpix/webhook_secret_rotated_at_display',
         new lang_string('setting_webhook_secret_rotated_at', 'local_fastpix'),
-        \html_writer::tag('code', s(userdate($rotated_at))),
+        \html_writer::tag('code', s(userdate($rotatedat))),
     ));
 }
 
-$btn_send_event_id = 'local_fastpix_send_test_event_btn';
-$btn_send_event_status_id = 'local_fastpix_send_test_event_status';
+$btnsendeventid = 'local_fastpix_send_test_event_btn';
+$btnsendeventstatusid = 'local_fastpix_send_test_event_status';
 $settings->add(new admin_setting_description(
     'local_fastpix/send_test_event_button',
     new lang_string('button_send_test_event', 'local_fastpix'),
-    $local_fastpix_button_html(
-        $btn_send_event_id,
-        $btn_send_event_status_id,
+    $localfastpixbuttonhtml(
+        $btnsendeventid,
+        $btnsendeventstatusid,
         'button_send_test_event',
         'button_send_test_event_desc',
         'local_fastpix_send_test_event',

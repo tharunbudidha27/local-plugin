@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Utility: cache keys.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\util;
 
 defined('MOODLE_INTERNAL') || die();
@@ -25,17 +48,23 @@ defined('MOODLE_INTERNAL') || die();
  *   - \local_fastpix\task\purge_soft_deleted_assets (invalidate on purge)
  *
  * Any future caller that needs an asset-cache key MUST use these methods.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class cache_keys {
 
     /** Number of hex chars retained from the SHA-256 digest. */
     private const TRUNCATE_TO = 32;
 
-    public static function fastpix(string $fastpix_id): string {
-        return 'fp_' . substr(hash('sha256', $fastpix_id), 0, self::TRUNCATE_TO);
+    /** Fastpix. */
+    public static function fastpix(string $fastpixid): string {
+        return 'fp_' . substr(hash('sha256', $fastpixid), 0, self::TRUNCATE_TO);
     }
 
-    public static function playback(string $playback_id): string {
-        return 'pb_' . substr(hash('sha256', $playback_id), 0, self::TRUNCATE_TO);
+    /** Playback. */
+    public static function playback(string $playbackid): string {
+        return 'pb_' . substr(hash('sha256', $playbackid), 0, self::TRUNCATE_TO);
     }
 }

@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * External (web service) function: get upload status.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\external;
 
 defined('MOODLE_INTERNAL') || die();
@@ -17,9 +40,14 @@ defined('MOODLE_INTERNAL') || die();
  * Registered in db/services.php as 'local_fastpix_get_upload_status'.
  * type=read; capability: mod/fastpix:uploadmedia (per ADR-012).
  * No sesskey required (read-only endpoint, idempotent, CSRF-safe).
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class get_upload_status extends \core_external\external_api {
 
+    /** Web service parameter spec. */
     public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'session_id' => new \core_external\external_value(
@@ -33,17 +61,17 @@ class get_upload_status extends \core_external\external_api {
     /**
      * Get the status of an upload session.
      *
-     * @param int $session_id Local upload_session row id
+     * @param int $sessionid Local upload_session row id
      * @return array{session_id:int,upload_id:string,state:string,fastpix_id:string,expires_at:int}
      * @throws \local_fastpix\exception\asset_not_found if not found OR not owned by caller
      */
-    public static function execute(int $session_id): array {
+    public static function execute(int $sessionid): array {
         global $USER;
 
         // 1. Validate parameters first.
         $params = self::validate_parameters(
             self::execute_parameters(),
-            ['session_id' => $session_id]
+            ['session_id' => $sessionid]
         );
 
         // 2. Authenticate + authorize.
@@ -66,6 +94,7 @@ class get_upload_status extends \core_external\external_api {
         ];
     }
 
+    /** Web service return spec. */
     public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(

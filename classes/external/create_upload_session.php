@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * External (web service) function: create upload session.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\external;
 
 defined('MOODLE_INTERNAL') || die();
@@ -12,9 +35,14 @@ defined('MOODLE_INTERNAL') || die();
  *
  * Registered in db/services.php as 'local_fastpix_create_upload_session'.
  * Capability: mod/fastpix:uploadmedia (per ADR-012, owned by mod_fastpix).
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class create_upload_session extends \core_external\external_api {
 
+    /** Web service parameter spec. */
     public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'filename' => new \core_external\external_value(
@@ -72,6 +100,7 @@ class create_upload_session extends \core_external\external_api {
         ];
     }
 
+    /** Web service return spec. */
     public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(

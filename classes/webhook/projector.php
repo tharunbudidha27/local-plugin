@@ -1,20 +1,55 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Webhook component: projector.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\webhook;
 
 use local_fastpix\exception\lock_acquisition_failed;
 
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Webhook event projector — applies events onto the asset row under a per-asset lock.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class projector {
 
+    /** @var string Table. */
     private const TABLE = 'local_fastpix_asset';
+    /** @var string Lock factory. */
     private const LOCK_FACTORY = 'local_fastpix_projector';
+    /** @var int Lock wait seconds. */
     private const LOCK_WAIT_SECONDS = 5;
 
-    private \core\lock\lock_factory $lock_factory;
+    /** @var \core\lock\lock_factory $lockfactory */
+    private \core\lock\lock_factory $lockfactory;
 
-    public function __construct(?\core\lock\lock_factory $lock_factory = null) {
-        $this->lock_factory = $lock_factory
+    /** Constructor. */
+    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
+        $this->lock_factory = $lockfactory
             ?? \core\lock\lock_config::get_lock_factory(self::LOCK_FACTORY);
     }
 
@@ -26,33 +61,34 @@ class projector {
      * invalidates the asset cache (both keys) inside the lock.
      */
     public function project(\stdClass $event): void {
-        $object_type = (string)($event->object->type ?? '');
-        $fastpix_id  = (string)($event->object->id ?? '');
+        $objecttype = (string)($event->object->type ?? '');
+        $fastpixid  = (string)($event->object->id ?? '');
 
         // Account-level / non-media events are not our concern.
-        if ($fastpix_id === '' || !$this->is_media_object($object_type)) {
+        if ($fastpixid === '' || !$this->is_media_object($objecttype)) {
             return;
         }
 
-        $resource = 'asset_' . $fastpix_id;
+        $resource = 'asset_' . $fastpixid;
         $lock     = $this->lock_factory->get_lock($resource, self::LOCK_WAIT_SECONDS);
 
         if ($lock === false) {
-            throw new lock_acquisition_failed('asset_' . $fastpix_id);
+            throw new lock_acquisition_failed('asset_' . $fastpixid);
         }
 
         try {
-            $this->project_inside_lock($event, $fastpix_id);
+            $this->project_inside_lock($event, $fastpixid);
         } finally {
             $lock->release();
         }
     }
 
-    private function project_inside_lock(\stdClass $event, string $fastpix_id): void {
+    /** Project inside lock. */
+    private function project_inside_lock(\stdClass $event, string $fastpixid): void {
         global $DB;
 
-        $row = $DB->get_record(self::TABLE, ['fastpix_id' => $fastpix_id]);
-        $event_type = (string)($event->type ?? '');
+        $row = $DB->get_record(self::TABLE, ['fastpix_id' => $fastpixid]);
+        $eventtype = (string)($event->type ?? '');
 
         if ($row === false) {
             // Real FastPix direct uploads never emit `video.media.created`;
@@ -62,17 +98,17 @@ class projector {
             // earlier of those two. Accept any of these as a row-insert trigger
             // — `video.media.upload` is the only one that does NOT carry the
             // asset shape and is skipped (the next event will create the row).
-            $insert_triggers = [
+            $inserttriggers = [
                 'video.media.created',
                 'video.upload.media_created',
                 'video.media.ready',
                 'video.media.updated',
             ];
-            if (in_array($event_type, $insert_triggers, true)) {
-                $row = $this->insert_from_created_event($event, $fastpix_id);
+            if (in_array($eventtype, $inserttriggers, true)) {
+                $row = $this->insert_from_created_event($event, $fastpixid);
             } else {
                 debugging(
-                    "projector: event {$event_type} for unknown asset {$fastpix_id}",
+                    "projector: event {$eventtype} for unknown asset {$fastpixid}",
                     DEBUG_DEVELOPER,
                 );
                 return;
@@ -102,8 +138,9 @@ class projector {
         $this->link_upload_session((string)$row->fastpix_id);
     }
 
-    private function is_media_object(string $object_type): bool {
-        return in_array($object_type, ['video.media', 'media'], true);
+    /** Whether media object. */
+    private function is_media_object(string $objecttype): bool {
+        return in_array($objecttype, ['video.media', 'media'], true);
     }
 
     /**
@@ -137,13 +174,13 @@ class projector {
             return false;
         }
 
-        $event_at = $this->event_timestamp($event);
-        $last_at  = (int)$row->last_event_at;
+        $eventat = $this->event_timestamp($event);
+        $lastat  = (int)$row->last_event_at;
 
-        if ($event_at < $last_at) {
+        if ($eventat < $lastat) {
             return true;
         }
-        if ($event_at > $last_at) {
+        if ($eventat > $lastat) {
             return false;
         }
         // Equal timestamps — tiebreak by event_id; smaller-or-equal IDs lose.
@@ -215,17 +252,18 @@ class projector {
         }
     }
 
-    private function insert_from_created_event(\stdClass $event, string $fastpix_id): \stdClass {
+    /** Insert from created event. */
+    private function insert_from_created_event(\stdClass $event, string $fastpixid): \stdClass {
         global $DB;
 
         $data = $event->data ?? new \stdClass();
         $now = time();
 
         $row = (object)[
-            'fastpix_id'             => $fastpix_id,
+            'fastpix_id'             => $fastpixid,
             'playback_id'            => null,
             'owner_userid'           => 0, // sentinel
-            'title'                  => (string)($data->title ?? "Asset {$fastpix_id}"),
+            'title'                  => (string)($data->title ?? "Asset {$fastpixid}"),
             'duration'               => $this->parse_duration($data->duration ?? null),
             'status'                 => (string)($data->status ?? 'created'),
             'access_policy'          => (string)($data->accessPolicy ?? 'private'),
@@ -294,16 +332,17 @@ class projector {
      * session_id → fastpix_id → asset. Idempotent — only touches rows
      * whose fastpix_id is still null.
      */
-    private function link_upload_session(string $fastpix_id): void {
+    private function link_upload_session(string $fastpixid): void {
         global $DB;
         $DB->execute(
             "UPDATE {local_fastpix_upload_session}
                 SET fastpix_id = :fpid, state = 'created'
               WHERE upload_id = :upid AND fastpix_id IS NULL",
-            ['fpid' => $fastpix_id, 'upid' => $fastpix_id]
+            ['fpid' => $fastpixid, 'upid' => $fastpixid]
         );
     }
 
+    /** Count caption tracks. */
     private function count_caption_tracks(\stdClass $data): int {
         if (empty($data->tracks) || !is_array($data->tracks)) {
             return 0;
@@ -320,11 +359,12 @@ class projector {
 
     // ---- Cache invalidation (mirrors asset_service helpers) -------------
 
-    private function invalidate_cache(string $fastpix_id, ?string $playback_id): void {
+    /** Invalidate cache. */
+    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = \cache::make('local_fastpix', 'asset');
-        $cache->delete(\local_fastpix\util\cache_keys::fastpix($fastpix_id));
-        if (!empty($playback_id)) {
-            $cache->delete(\local_fastpix\util\cache_keys::playback($playback_id));
+        $cache->delete(\local_fastpix\util\cache_keys::fastpix($fastpixid));
+        if (!empty($playbackid)) {
+            $cache->delete(\local_fastpix\util\cache_keys::playback($playbackid));
         }
     }
 
@@ -333,11 +373,12 @@ class projector {
      * keys as asset_service. Formula lives in
      * \local_fastpix\util\cache_keys.
      */
-    private function cache_key_fastpix(string $fastpix_id): string {
-        return \local_fastpix\util\cache_keys::fastpix($fastpix_id);
+    private function cache_key_fastpix(string $fastpixid): string {
+        return \local_fastpix\util\cache_keys::fastpix($fastpixid);
     }
 
-    private function cache_key_playback(string $playback_id): string {
-        return \local_fastpix\util\cache_keys::playback($playback_id);
+    /** Cache helper for key playback. */
+    private function cache_key_playback(string $playbackid): string {
+        return \local_fastpix\util\cache_keys::playback($playbackid);
     }
 }

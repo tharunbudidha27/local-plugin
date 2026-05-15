@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Data transfer object: playback payload.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\dto;
 
 defined('MOODLE_INTERNAL') || die();
@@ -10,16 +33,21 @@ defined('MOODLE_INTERNAL') || die();
  * (CC8). The four sibling plugins (mod_fastpix, filter_fastpix,
  * tinymce_fastpix, future viewer) consume this DTO directly — renaming a
  * field here is a major version bump and an ADR.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class playback_payload {
 
+    /** Constructor. */
     public function __construct(
-        public readonly string $playback_id,
-        public readonly string $playback_token,
-        public readonly int $expires_at_ts,
-        public readonly bool $drm_required,
-        public readonly ?string $accent_color,
-        public readonly bool $default_show_captions,
+        public readonly string $playbackid,
+        public readonly string $playbacktoken,
+        public readonly int $expiresatts,
+        public readonly bool $drmrequired,
+        public readonly ?string $accentcolor,
+        public readonly bool $defaultshowcaptions,
     ) {}
 
     /**
@@ -30,24 +58,24 @@ class playback_payload {
      *
      * @param \stdClass $asset       Row from local_fastpix_asset.
      * @param string    $jwt         Signed JWT from jwt_signing_service.
-     * @param int       $ttl_seconds JWT TTL in seconds.
-     * @param ?string   $accent_color Optional brand colour (CSS string) from the caller.
-     * @param bool      $default_show_captions Whether captions are on by default for this activity.
+     * @param int       $ttlseconds JWT TTL in seconds.
+     * @param ?string   $accentcolor Optional brand colour (CSS string) from the caller.
+     * @param bool      $defaultshowcaptions Whether captions are on by default for this activity.
      */
     public static function from_asset_and_jwt(
         \stdClass $asset,
         string $jwt,
-        int $ttl_seconds,
-        ?string $accent_color = null,
-        bool $default_show_captions = false,
+        int $ttlseconds,
+        ?string $accentcolor = null,
+        bool $defaultshowcaptions = false,
     ): self {
         return new self(
             playback_id:           (string)$asset->playback_id,
             playback_token:        $jwt,
-            expires_at_ts:         time() + $ttl_seconds,
+            expires_at_ts:         time() + $ttlseconds,
             drm_required:          (bool)($asset->drm_required ?? false),
-            accent_color:          $accent_color,
-            default_show_captions: $default_show_captions,
+            accent_color:          $accentcolor,
+            default_show_captions: $defaultshowcaptions,
         );
     }
 }

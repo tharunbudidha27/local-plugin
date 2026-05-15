@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Health-check component: runner.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\health;
 
 defined('MOODLE_INTERNAL') || die();
@@ -14,6 +37,10 @@ defined('MOODLE_INTERNAL') || die();
  * anything downstream is converted to a 503 response. The endpoint must
  * not 500 — that would prevent ops from distinguishing a hard failure
  * from a slow probe.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class runner {
 
@@ -23,25 +50,25 @@ class runner {
     /**
      * Run the health check for one request.
      *
-     * @param string $client_ip Source IP for rate-limit keying.
+     * @param string $clientip Source IP for rate-limit keying.
      * @return array{http_code: int, body: array<string, mixed>}
      */
-    public static function run(string $client_ip): array {
+    public static function run(string $clientip): array {
         try {
             $limiter = \local_fastpix\service\rate_limiter_service::instance();
-            if (!$limiter->allow($client_ip, self::RATE_LIMIT_PER_MIN)) {
+            if (!$limiter->allow($clientip, self::RATE_LIMIT_PER_MIN)) {
                 return self::response(429, 'rate_limited', null, 0);
             }
 
             $start = microtime(true);
             $reachable = \local_fastpix\api\gateway::instance()->health_probe();
-            $latency_ms = (int)((microtime(true) - $start) * 1000);
+            $latencyms = (int)((microtime(true) - $start) * 1000);
 
             return self::response(
                 $reachable ? 200 : 503,
                 $reachable ? 'ok' : 'degraded',
                 $reachable,
-                $latency_ms,
+                $latencyms,
             );
 
         } catch (\Throwable $e) {
@@ -58,13 +85,13 @@ class runner {
     /**
      * @return array{http_code: int, body: array<string, mixed>}
      */
-    private static function response(int $http_code, string $status, ?bool $reachable, int $latency_ms): array {
+    private static function response(int $httpcode, string $status, ?bool $reachable, int $latencyms): array {
         return [
-            'http_code' => $http_code,
+            'http_code' => $httpcode,
             'body' => [
                 'status'            => $status,
                 'fastpix_reachable' => $reachable,
-                'latency_ms'        => $latency_ms,
+                'latency_ms'        => $latencyms,
                 'timestamp'         => time(),
             ],
         ];

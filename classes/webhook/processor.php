@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Webhook component: processor.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\webhook;
 
 defined('MOODLE_INTERNAL') || die();
@@ -12,9 +35,9 @@ defined('MOODLE_INTERNAL') || die();
  * both surfaces.
  *
  * Inputs:
- *   - $raw_body: the bytes of the POST body (must be read via
+ *   - $rawbody: the bytes of the POST body (must be read via
  *     file_get_contents('php://input') BEFORE any framework parsing).
- *   - $signature_header: FastPix-Signature header value.
+ *   - $signatureheader: FastPix-Signature header value.
  *
  * Outputs (array shape):
  *   [
@@ -23,22 +46,33 @@ defined('MOODLE_INTERNAL') || die();
  *     'event_id'  => string|null,               (provider_event_id when known)
  *     'error'     => string|null,               (human-readable reason on rejection)
  *   ]
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class processor {
 
+    /** @var string Result accepted. */
     public const RESULT_ACCEPTED       = 'accepted';
+    /** @var string Result duplicate. */
     public const RESULT_DUPLICATE      = 'duplicate';
+    /** @var string Result bad signature. */
     public const RESULT_BAD_SIGNATURE  = 'bad_signature';
+    /** @var string Result malformed body. */
     public const RESULT_MALFORMED_BODY = 'malformed_body';
+    /** @var string Result db error. */
     public const RESULT_DB_ERROR       = 'db_error';
 
+    /** @var string Ledger table. */
     private const LEDGER_TABLE = 'local_fastpix_webhook_event';
 
-    public static function process(string $raw_body, string $signature_header): array {
+    /** Process. */
+    public static function process(string $rawbody, string $signatureheader): array {
         global $DB;
 
         // 1. Signature verification (rule S3 — hash_equals via verifier).
-        if (!verifier::instance()->verify($raw_body, $signature_header)) {
+        if (!verifier::instance()->verify($rawbody, $signatureheader)) {
             return [
                 'result'    => self::RESULT_BAD_SIGNATURE,
                 'ledger_id' => null,
@@ -48,7 +82,7 @@ class processor {
         }
 
         // 2. Parse JSON.
-        $event = json_decode($raw_body);
+        $event = json_decode($rawbody);
         if (!($event instanceof \stdClass)) {
             return [
                 'result'    => self::RESULT_MALFORMED_BODY,
@@ -58,31 +92,31 @@ class processor {
             ];
         }
 
-        $event_id   = isset($event->id) ? (string)$event->id : '';
-        $event_type = isset($event->type) ? (string)$event->type : '';
-        if ($event_id === '' || $event_type === '') {
+        $eventid   = isset($event->id) ? (string)$event->id : '';
+        $eventtype = isset($event->type) ? (string)$event->type : '';
+        if ($eventid === '' || $eventtype === '') {
             return [
                 'result'    => self::RESULT_MALFORMED_BODY,
                 'ledger_id' => null,
-                'event_id'  => $event_id !== '' ? $event_id : null,
+                'event_id'  => $eventid !== '' ? $eventid : null,
                 'error'     => 'missing required field id/type',
             ];
         }
 
         // 3. Idempotent ledger insert. UNIQUE on provider_event_id catches
         // duplicates as dml_write_exception — duplicate is success (W1).
-        $event_created_at = isset($event->occurredAt) ? (int)$event->occurredAt : time();
+        $eventcreatedat = isset($event->occurredAt) ? (int)$event->occurredAt : time();
 
         try {
             $transaction = $DB->start_delegated_transaction();
 
             try {
-                $ledger_id = $DB->insert_record(self::LEDGER_TABLE, (object)[
-                    'provider_event_id'     => $event_id,
-                    'event_type'            => $event_type,
-                    'event_created_at'      => $event_created_at,
-                    'payload'               => $raw_body,
-                    'signature'             => $signature_header,
+                $ledgerid = $DB->insert_record(self::LEDGER_TABLE, (object)[
+                    'provider_event_id'     => $eventid,
+                    'event_type'            => $eventtype,
+                    'event_created_at'      => $eventcreatedat,
+                    'payload'               => $rawbody,
+                    'signature'             => $signatureheader,
                     'status'                => 'pending',
                     'received_at'           => time(),
                     'processing_latency_ms' => 0,
@@ -92,28 +126,28 @@ class processor {
                 $transaction->allow_commit();
                 $existing = $DB->get_record(
                     self::LEDGER_TABLE,
-                    ['provider_event_id' => $event_id],
+                    ['provider_event_id' => $eventid],
                     'id'
                 );
                 return [
                     'result'    => self::RESULT_DUPLICATE,
                     'ledger_id' => $existing ? (int)$existing->id : null,
-                    'event_id'  => $event_id,
+                    'event_id'  => $eventid,
                     'error'     => null,
                 ];
             }
 
             // 4. Enqueue adhoc task for asynchronous projection.
             $task = new \local_fastpix\task\process_webhook();
-            $task->set_custom_data((object)['provider_event_id' => $event_id]);
+            $task->set_custom_data((object)['provider_event_id' => $eventid]);
             \core\task\manager::queue_adhoc_task($task);
 
             $transaction->allow_commit();
 
             return [
                 'result'    => self::RESULT_ACCEPTED,
-                'ledger_id' => (int)$ledger_id,
-                'event_id'  => $event_id,
+                'ledger_id' => (int)$ledgerid,
+                'event_id'  => $eventid,
                 'error'     => null,
             ];
 
@@ -121,7 +155,7 @@ class processor {
             return [
                 'result'    => self::RESULT_DB_ERROR,
                 'ledger_id' => null,
-                'event_id'  => $event_id,
+                'event_id'  => $eventid,
                 'error'     => $e->getMessage(),
             ];
         }

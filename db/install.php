@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Install-time bootstrap for local_fastpix.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -37,8 +60,8 @@ function xmldb_local_fastpix_install() {
     set_config('max_resolution',        '1080p',   'local_fastpix');
 
     // Tell the admin where to point FastPix's webhook configuration.
-    $webhook_url = (new moodle_url('/local/fastpix/webhook.php'))->out(false);
-    mtrace("local_fastpix installed. Configure FastPix webhooks to POST to:\n  {$webhook_url}");
+    $webhookurl = (new moodle_url('/local/fastpix/webhook.php'))->out(false);
+    mtrace("local_fastpix installed. Configure FastPix webhooks to POST to:\n  {$webhookurl}");
 
     return true;
 }

@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * API integration: gateway.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\api;
 
 use local_fastpix\exception\gateway_unavailable;
@@ -15,34 +38,51 @@ defined('MOODLE_INTERNAL') || die();
  * Owns retry, circuit breaker, idempotency keys, two timeout profiles,
  * structured logging, and credential injection. Rule A2: no other class
  * may make HTTP calls to FastPix.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class gateway {
 
+    /** @var array Profile hot. */
     private const PROFILE_HOT      = ['connect' => 3, 'read' => 3];
+    /** @var array Profile standard. */
     private const PROFILE_STANDARD = ['connect' => 5, 'read' => 30];
+    /** @var array Profile health. */
     private const PROFILE_HEALTH   = ['connect' => 1, 'read' => 1];
 
+    /** @var array Retry delays ms. */
     private const RETRY_DELAYS_MS    = [200, 400, 800];
+    /** @var int Retry jitter ms. */
     private const RETRY_JITTER_MS    = 25;
+    /** @var int Retry max attempts. */
     private const RETRY_MAX_ATTEMPTS = 3;
+    /** @var int Retry after cap ms. */
     private const RETRY_AFTER_CAP_MS = 3000;
 
+    /** @var int Breaker threshold. */
     private const BREAKER_THRESHOLD    = 5;
+    /** @var int Breaker open seconds. */
     private const BREAKER_OPEN_SECONDS = 30;
 
+    /** @var string Default base url. */
     private const DEFAULT_BASE_URL = 'https://api.fastpix.io';
 
     /** Max response body length the gateway will decode (defensive). */
     private const MAX_RESPONSE_BYTES = 5242880; // 5 MiB
 
+    /** @var ?self $instance */
     private static ?self $instance = null;
 
+    /** Constructor. */
     private function __construct(
         private \core\http_client $http,
-        private \cache_application $breaker_cache,
+        private \cache_application $breakercache,
         private credential_service $credentials,
     ) {}
 
+    /** Singleton accessor. */
     public static function instance(): self {
         if (self::$instance === null) {
             self::$instance = new self(
@@ -54,6 +94,7 @@ class gateway {
         return self::$instance;
     }
 
+    /** Reset the singleton (used by tests). */
     public static function reset(): void {
         self::$instance = null;
     }
@@ -64,22 +105,22 @@ class gateway {
      * POST /v1/on-demand/upload — create a direct file-upload session.
      */
     public function input_video_direct_upload(
-        string $owner_hash,
+        string $ownerhash,
         array $metadata,
-        string $access_policy,
-        ?string $drm_config_id,
-        string $max_resolution = '1080p',
+        string $accesspolicy,
+        ?string $drmconfigid,
+        string $maxresolution = '1080p',
     ): \stdClass {
         $body = [
             'corsOrigin'   => '*',
             'pushMediaSettings' => [
                 'metadata'      => $metadata,
-                'accessPolicy'  => $access_policy,
-                'maxResolution' => $max_resolution,
+                'accessPolicy'  => $accesspolicy,
+                'maxResolution' => $maxresolution,
             ],
         ];
-        if ($drm_config_id !== null && $drm_config_id !== '') {
-            $body['pushMediaSettings']['drmConfigurationId'] = $drm_config_id;
+        if ($drmconfigid !== null && $drmconfigid !== '') {
+            $body['pushMediaSettings']['drmConfigurationId'] = $drmconfigid;
         }
 
         return $this->request(
@@ -87,7 +128,7 @@ class gateway {
             '/v1/on-demand/upload',
             $body,
             self::PROFILE_STANDARD,
-            $this->idempotency_key('input_video_direct_upload', $owner_hash, $body),
+            $this->idempotency_key('input_video_direct_upload', $ownerhash, $body),
         );
     }
 
@@ -95,21 +136,21 @@ class gateway {
      * POST /v1/on-demand — create a media asset from a remote URL.
      */
     public function media_create_from_url(
-        string $source_url,
-        string $owner_hash,
+        string $sourceurl,
+        string $ownerhash,
         array $metadata,
-        string $access_policy,
-        ?string $drm_config_id,
-        string $max_resolution = '1080p',
+        string $accesspolicy,
+        ?string $drmconfigid,
+        string $maxresolution = '1080p',
     ): \stdClass {
         $body = [
-            'inputs'        => [['type' => 'video', 'url' => $source_url]],
+            'inputs'        => [['type' => 'video', 'url' => $sourceurl]],
             'metadata'      => $metadata,
-            'accessPolicy'  => $access_policy,
-            'maxResolution' => $max_resolution,
+            'accessPolicy'  => $accesspolicy,
+            'maxResolution' => $maxresolution,
         ];
-        if ($drm_config_id !== null && $drm_config_id !== '') {
-            $body['drmConfigurationId'] = $drm_config_id;
+        if ($drmconfigid !== null && $drmconfigid !== '') {
+            $body['drmConfigurationId'] = $drmconfigid;
         }
 
         return $this->request(
@@ -117,7 +158,7 @@ class gateway {
             '/v1/on-demand',
             $body,
             self::PROFILE_STANDARD,
-            $this->idempotency_key('media_create_from_url', $owner_hash, $body),
+            $this->idempotency_key('media_create_from_url', $ownerhash, $body),
         );
     }
 
@@ -125,10 +166,10 @@ class gateway {
      * GET /v1/on-demand/{mediaId} — hot path. PROFILE_HOT (3s/3s).
      * 404 → gateway_not_found IMMEDIATELY, no retry.
      */
-    public function get_media(string $fastpix_id): \stdClass {
+    public function get_media(string $fastpixid): \stdClass {
         return $this->request(
             'GET',
-            '/v1/on-demand/' . rawurlencode($fastpix_id),
+            '/v1/on-demand/' . rawurlencode($fastpixid),
             null,
             self::PROFILE_HOT,
             null,
@@ -138,13 +179,13 @@ class gateway {
     /**
      * DELETE /v1/on-demand/{mediaId}. 404 returns silently (idempotent).
      */
-    public function delete_media(string $fastpix_id): void {
+    public function delete_media(string $fastpixid): void {
         $this->request(
             'DELETE',
-            '/v1/on-demand/' . rawurlencode($fastpix_id),
+            '/v1/on-demand/' . rawurlencode($fastpixid),
             null,
             self::PROFILE_STANDARD,
-            $this->idempotency_key('delete_media', $fastpix_id, null),
+            $this->idempotency_key('delete_media', $fastpixid, null),
         );
     }
 
@@ -198,27 +239,28 @@ class gateway {
 
     // ---- Private helpers --------------------------------------------------
 
+    /** Request. */
     private function request(
         string $method,
         string $path,
         ?array $body,
         array $profile,
-        ?string $idempotency_key,
+        ?string $idempotencykey,
     ): \stdClass {
-        $endpoint_key = $this->endpoint_key($method, $path);
-        $request_id   = 'req_' . random_string(12);
+        $endpointkey = $this->endpoint_key($method, $path);
+        $requestid   = 'req_' . random_string(12);
         $host         = $this->host_from_base();
 
-        if ($this->breaker_is_open($endpoint_key)) {
-            $this->log_call($endpoint_key, 0, 0, 0, $profile, 'open', $method, $host, $path, $request_id);
-            throw new gateway_unavailable("circuit_open:{$endpoint_key}");
+        if ($this->breaker_is_open($endpointkey)) {
+            $this->log_call($endpointkey, 0, 0, 0, $profile, 'open', $method, $host, $path, $requestid);
+            throw new gateway_unavailable("circuit_open:{$endpointkey}");
         }
 
         $start = microtime(true);
         $attempt = 0;
-        $last_error = null;
-        $last_body  = '';
-        $delay_ms = 0;
+        $lasterror = null;
+        $lastbody  = '';
+        $delayms = 0;
 
         while ($attempt < self::RETRY_MAX_ATTEMPTS) {
             $attempt++;
@@ -228,7 +270,7 @@ class gateway {
                     'connect_timeout'  => $profile['connect'],
                     'timeout'          => $profile['read'],
                     'auth'             => [$this->credentials->apikey(), $this->credentials->apisecret()],
-                    'headers'          => $this->build_headers($idempotency_key, $request_id),
+                    'headers'          => $this->build_headers($idempotencykey, $requestid),
                     'json'             => $body,
                     'http_errors'      => false,
                     // FastPix's CDN advertises AAAA records; many container
@@ -239,38 +281,38 @@ class gateway {
                 ]);
 
                 $status = $response->getStatusCode();
-                $latency_ms = (int)((microtime(true) - $start) * 1000);
-                $this->log_call($endpoint_key, $latency_ms, $status, $attempt, $profile, 'closed', $method, $host, $path, $request_id);
+                $latencyms = (int)((microtime(true) - $start) * 1000);
+                $this->log_call($endpointkey, $latencyms, $status, $attempt, $profile, 'closed', $method, $host, $path, $requestid);
 
                 if ($status >= 200 && $status < 300) {
-                    $this->breaker_record_success($endpoint_key);
+                    $this->breaker_record_success($endpointkey);
                     return $this->decode_body($response);
                 }
 
                 // Capture the body once per response so retries_exhausted carries
                 // the LAST upstream diagnostic. Body is NOT logged anywhere — only
                 // attached to the thrown exception's $a context for the caller.
-                $last_body = $this->body_snippet($response);
+                $lastbody = $this->body_snippet($response);
 
                 if ($status === 404) {
                     if ($method === 'GET' && str_starts_with($path, '/v1/on-demand/')) {
-                        throw new gateway_not_found("{$path} body={$last_body}");
+                        throw new gateway_not_found("{$path} body={$lastbody}");
                     }
                     if ($method === 'DELETE') {
-                        $this->breaker_record_success($endpoint_key);
+                        $this->breaker_record_success($endpointkey);
                         return new \stdClass();
                     }
                 }
 
                 if (!$this->is_retryable($status)) {
-                    $this->breaker_record_failure($endpoint_key);
-                    throw new gateway_unavailable("status_{$status}:{$endpoint_key} body={$last_body}");
+                    $this->breaker_record_failure($endpointkey);
+                    throw new gateway_unavailable("status_{$status}:{$endpointkey} body={$lastbody}");
                 }
 
-                $delay_ms = $status === 429
+                $delayms = $status === 429
                     ? min(self::RETRY_AFTER_CAP_MS, $this->parse_retry_after($response) * 1000)
                     : self::RETRY_DELAYS_MS[$attempt - 1] + random_int(-self::RETRY_JITTER_MS, self::RETRY_JITTER_MS);
-                $last_error = "status_{$status}";
+                $lasterror = "status_{$status}";
 
             } catch (gateway_not_found $e) {
                 throw $e;
@@ -280,19 +322,19 @@ class gateway {
                 // response_too_large / json_decode_failed — not transient, no retry.
                 throw $e;
             } catch (\Throwable $e) {
-                $last_error = 'network_' . (new \ReflectionClass($e))->getShortName();
-                $delay_ms = self::RETRY_DELAYS_MS[$attempt - 1] + random_int(-self::RETRY_JITTER_MS, self::RETRY_JITTER_MS);
-                $this->log_call($endpoint_key, (int)((microtime(true) - $start) * 1000), 0, $attempt, $profile, 'closed', $method, $host, $path, $request_id);
+                $lasterror = 'network_' . (new \ReflectionClass($e))->getShortName();
+                $delayms = self::RETRY_DELAYS_MS[$attempt - 1] + random_int(-self::RETRY_JITTER_MS, self::RETRY_JITTER_MS);
+                $this->log_call($endpointkey, (int)((microtime(true) - $start) * 1000), 0, $attempt, $profile, 'closed', $method, $host, $path, $requestid);
             }
 
-            if ($attempt < self::RETRY_MAX_ATTEMPTS && $delay_ms > 0) {
-                usleep($delay_ms * 1000);
+            if ($attempt < self::RETRY_MAX_ATTEMPTS && $delayms > 0) {
+                usleep($delayms * 1000);
             }
         }
 
-        $this->breaker_record_failure($endpoint_key);
-        $body_tag = $last_body !== '' ? " body={$last_body}" : '';
-        throw new gateway_unavailable("retries_exhausted:{$last_error}:{$endpoint_key}{$body_tag}");
+        $this->breaker_record_failure($endpointkey);
+        $bodytag = $lastbody !== '' ? " body={$lastbody}" : '';
+        throw new gateway_unavailable("retries_exhausted:{$lasterror}:{$endpointkey}{$bodytag}");
     }
 
     /**
@@ -310,12 +352,14 @@ class gateway {
         return substr($raw, 0, 500) . '...';
     }
 
+    /** Whether retryable. */
     private function is_retryable(int $status): bool {
         // 408 (Request Timeout) is transient under sustained load; retry per
         // FastPix docs.
         return in_array($status, [408, 429, 500, 502, 503, 504], true);
     }
 
+    /** Parse retry after. */
     private function parse_retry_after($response): int {
         $header = $response->getHeaderLine('Retry-After');
         if ($header === '' || !ctype_digit(trim($header))) {
@@ -324,6 +368,7 @@ class gateway {
         return max(0, (int)$header);
     }
 
+    /** Decode body. */
     private function decode_body($response): \stdClass {
         // Defensive bound against malicious upstream returning unbounded bytes.
         $advertised = (int)$response->getHeaderLine('Content-Length');
@@ -344,16 +389,17 @@ class gateway {
         return is_array($decoded) ? (object)['data' => $decoded] : $decoded;
     }
 
-    private function build_headers(?string $idempotency_key, ?string $request_id = null): array {
+    /** Build headers. */
+    private function build_headers(?string $idempotencykey, ?string $requestid = null): array {
         $headers = [
             'Accept'     => 'application/json',
             'User-Agent' => 'local_fastpix/' . (string)get_config('local_fastpix', 'version'),
         ];
-        if ($idempotency_key !== null) {
-            $headers['Idempotency-Key'] = $idempotency_key;
+        if ($idempotencykey !== null) {
+            $headers['Idempotency-Key'] = $idempotencykey;
         }
-        if ($request_id !== null && $request_id !== '') {
-            $headers['X-Request-Id'] = $request_id;
+        if ($requestid !== null && $requestid !== '') {
+            $headers['X-Request-Id'] = $requestid;
         }
         return $headers;
     }
@@ -366,11 +412,13 @@ class gateway {
         return is_string($host) ? $host : '';
     }
 
-    private function idempotency_key(string $operation, string $owner_hash, ?array $body): string {
-        $payload_hash = $body !== null ? hash('sha256', json_encode($body)) : '-';
-        return hash('sha256', "{$operation}:{$owner_hash}:{$payload_hash}");
+    /** Idempotency key. */
+    private function idempotency_key(string $operation, string $ownerhash, ?array $body): string {
+        $payloadhash = $body !== null ? hash('sha256', json_encode($body)) : '-';
+        return hash('sha256', "{$operation}:{$ownerhash}:{$payloadhash}");
     }
 
+    /** Endpoint key. */
     private function endpoint_key(string $method, string $path): string {
         // MUC area 'circuit_breaker' is declared simplekeys=true, so the key must be
         // alphanumeric only. SHA-256 prefix (32 hex chars) gives 128 bits of collision
@@ -378,6 +426,7 @@ class gateway {
         return substr(hash('sha256', $method . ':' . $path), 0, 32);
     }
 
+    /** Base url. */
     private function base_url(): string {
         $configured = (string)get_config('local_fastpix', 'fastpix_base_url');
         return $configured !== '' ? rtrim($configured, '/') : self::DEFAULT_BASE_URL;
@@ -385,6 +434,7 @@ class gateway {
 
     // ---- Circuit breaker (MUC-backed; multi-FPM correctness) --------------
 
+    /** Breaker is open. */
     private function breaker_is_open(string $key): bool {
         $state = $this->breaker_cache->get($key);
         if (!is_array($state)) {
@@ -393,6 +443,7 @@ class gateway {
         return ($state['open_until'] ?? 0) > time();
     }
 
+    /** Breaker record failure. */
     private function breaker_record_failure(string $key): void {
         $state = $this->breaker_cache->get($key);
         if (!is_array($state)) {
@@ -405,42 +456,44 @@ class gateway {
         $this->breaker_cache->set($key, $state);
     }
 
+    /** Breaker record success. */
     private function breaker_record_success(string $key): void {
         $this->breaker_cache->delete($key);
     }
 
     // ---- Structured logging (no secrets) ----------------------------------
 
+    /** Log call. */
     private function log_call(
-        string $endpoint_key,
-        int $latency_ms,
+        string $endpointkey,
+        int $latencyms,
         int $status,
         int $attempt,
         array $profile,
-        string $circuit_state,
+        string $circuitstate,
         string $method = '',
         string $host = '',
         string $path = '',
-        string $request_id = '',
+        string $requestid = '',
     ): void {
-        $profile_name = $profile === self::PROFILE_HOT
+        $profilename = $profile === self::PROFILE_HOT
             ? 'hot'
             : ($profile === self::PROFILE_HEALTH ? 'health' : 'standard');
 
-        $path_logged = $path === '' ? '' : strtok($path, '?');
+        $pathlogged = $path === '' ? '' : strtok($path, '?');
 
         error_log(json_encode([
             'event'           => 'gateway.call',
-            'request_id'      => $request_id,
+            'request_id'      => $requestid,
             'method'          => $method,
             'host'            => $host,
-            'path'            => $path_logged,
-            'endpoint'        => $endpoint_key,
-            'latency_ms'      => $latency_ms,
+            'path'            => $pathlogged,
+            'endpoint'        => $endpointkey,
+            'latency_ms'      => $latencyms,
             'status_code'     => $status,
             'attempt'         => $attempt,
-            'circuit_state'   => $circuit_state,
-            'timeout_profile' => $profile_name,
+            'circuit_state'   => $circuitstate,
+            'timeout_profile' => $profilename,
         ]));
     }
 }

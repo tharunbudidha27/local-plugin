@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Scheduled or adhoc task: retry gdpr delete.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\task;
 
 defined('MOODLE_INTERNAL') || die();
@@ -16,6 +39,10 @@ defined('MOODLE_INTERNAL') || die();
  *
  * Per @tasks-cleanup guardrails: batched, time-boxed, idempotent, never
  * logs raw user IDs.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class retry_gdpr_delete extends \core\task\scheduled_task {
 
@@ -32,10 +59,12 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
      */
     private const MAX_ATTEMPTS = 10;
 
+    /** Get name. */
     public function get_name(): string {
         return get_string('task_retry_gdpr_delete', 'local_fastpix');
     }
 
+    /** Web service main entry point. */
     public function execute(): void {
         global $DB;
 
@@ -78,11 +107,11 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
             // exceptions (and even task crashes mid-call) count toward the
             // cap. Otherwise a failure mode that consistently kills the
             // PHP process would loop forever.
-            $next_attempt = ((int)$asset->gdpr_delete_attempts) + 1;
+            $nextattempt = ((int)$asset->gdpr_delete_attempts) + 1;
             $DB->set_field(
                 'local_fastpix_asset',
                 'gdpr_delete_attempts',
-                $next_attempt,
+                $nextattempt,
                 ['id' => $asset->id],
             );
 
@@ -110,7 +139,7 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
             } catch (\Throwable $e) {
                 $failed++;
 
-                if ($next_attempt >= self::MAX_ATTEMPTS) {
+                if ($nextattempt >= self::MAX_ATTEMPTS) {
                     $capped++;
                     // CRITICAL log line — ops audit signal. Row stays in DB
                     // with attempts at cap; future runs skip it via the
@@ -128,7 +157,7 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
                     mtrace(sprintf(
                         'retry_gdpr_delete: asset_row=%d attempt=%d/%d failed: %s',
                         $asset->id,
-                        $next_attempt,
+                        $nextattempt,
                         self::MAX_ATTEMPTS,
                         $e->getMessage(),
                     ));
@@ -136,14 +165,14 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
             }
         }
 
-        $latency_ms = (int)((microtime(true) - $start) * 1000);
+        $latencyms = (int)((microtime(true) - $start) * 1000);
         mtrace(sprintf(
             'retry_gdpr_delete: success=%d failed=%d capped=%d skipped=%d latency_ms=%d',
             $success,
             $failed,
             $capped,
             $skipped,
-            $latency_ms
+            $latencyms
         ));
     }
 }

@@ -1,20 +1,55 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Service: credential service.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\service;
 
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Service: credential.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class credential_service {
 
+    /** @var ?self $instance */
     private static ?self $instance = null;
 
+    /** @var ?\local_fastpix\api\gateway $gateway */
     private ?\local_fastpix\api\gateway $gateway = null;
 
+    /** Constructor. */
     private function __construct() {}
 
+    /** Singleton accessor. */
     public static function instance(): self {
         return self::$instance ??= new self();
     }
 
+    /** Reset the singleton (used by tests). */
     public static function reset(): void {
         self::$instance = null;
     }
@@ -27,6 +62,7 @@ class credential_service {
         $this->gateway = $gateway;
     }
 
+    /** Apikey. */
     public function apikey(): string {
         $value = (string)get_config('local_fastpix', 'apikey');
         if ($value === '') {
@@ -37,6 +73,7 @@ class credential_service {
         return $value;
     }
 
+    /** Apisecret. */
     public function apisecret(): string {
         $value = (string)get_config('local_fastpix', 'apisecret');
         if ($value === '') {
@@ -86,10 +123,10 @@ class credential_service {
             // FastPix wraps the response: {"success": true, "data": {"id": ..., "privateKey": ...}}
             // Unit-test mocks sometimes return the unwrapped shape; accept both.
             $payload = $response->data ?? $response;
-            $new_kid = (string)($payload->id ?? '');
-            $new_pem_field = (string)($payload->privateKey ?? '');
+            $newkid = (string)($payload->id ?? '');
+            $newpemfield = (string)($payload->privateKey ?? '');
 
-            if ($new_kid === '' || $new_pem_field === '') {
+            if ($newkid === '' || $newpemfield === '') {
                 throw new \local_fastpix\exception\signing_key_missing(
                     'gateway returned empty kid or privateKey field'
                 );
@@ -99,21 +136,21 @@ class credential_service {
             // mocks return a raw PEM string. Normalize so what we store is
             // exactly one base64 layer over a real PEM — which jwt_signing_service
             // can decode and feed straight into openssl_pkey_get_private().
-            $decoded_once = base64_decode($new_pem_field, true);
-            $looks_like_pem = $decoded_once !== false
-                && str_contains($decoded_once, '-----BEGIN');
-            $new_pem_b64 = $looks_like_pem
-                ? $new_pem_field                      // already base64'd PEM — store as-is.
-                : base64_encode($new_pem_field);      // raw PEM (test mock) — encode once.
+            $decodedonce = base64_decode($newpemfield, true);
+            $lookslikepem = $decodedonce !== false
+                && str_contains($decodedonce, '-----BEGIN');
+            $newpemb64 = $lookslikepem
+                ? $newpemfield                      // already base64'd PEM — store as-is.
+                : base64_encode($newpemfield);      // raw PEM (test mock) — encode once.
 
-            set_config('signing_key_id',         $new_kid,     'local_fastpix');
-            set_config('signing_private_key',    $new_pem_b64, 'local_fastpix');
+            set_config('signing_key_id',         $newkid,     'local_fastpix');
+            set_config('signing_private_key',    $newpemb64, 'local_fastpix');
             set_config('signing_key_created_at', time(),       'local_fastpix');
 
             // Log only the kid; the private key never appears in any log line (S2).
             error_log(json_encode([
                 'event' => 'credential.signing_key_bootstrapped',
-                'id'    => $new_kid,
+                'id'    => $newkid,
             ]));
         } finally {
             // Release MUST run even if create_signing_key threw, so the

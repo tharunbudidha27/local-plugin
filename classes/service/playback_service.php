@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Service: playback service.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\service;
 
 use local_fastpix\dto\playback_payload;
@@ -18,6 +41,10 @@ defined('MOODLE_INTERNAL') || die();
  * Read-path. No gateway call (rule W7), no DB write. The asset is
  * looked up via asset_service::get_by_fastpix_id which is MUC-cached;
  * the JWT mint itself is 1–5ms and never cached (rule S10).
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class playback_service {
 
@@ -34,13 +61,13 @@ class playback_service {
      * @throws asset_not_ready  if asset exists but status != 'ready'
      * @throws \local_fastpix\exception\signing_key_missing  bubbled from JWT mint
      */
-    public static function resolve(string $fastpix_id, int $userid): playback_payload {
-        $asset = asset_service::get_by_fastpix_id($fastpix_id);
+    public static function resolve(string $fastpixid, int $userid): playback_payload {
+        $asset = asset_service::get_by_fastpix_id($fastpixid);
         if ($asset === null) {
-            throw new asset_not_found($fastpix_id);
+            throw new asset_not_found($fastpixid);
         }
         if ($asset->status !== 'ready') {
-            throw new asset_not_ready($fastpix_id . ' (status=' . $asset->status . ')');
+            throw new asset_not_ready($fastpixid . ' (status=' . $asset->status . ')');
         }
 
         $signer = new jwt_signing_service();

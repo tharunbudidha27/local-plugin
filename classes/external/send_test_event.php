@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * External (web service) function: send test event.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\external;
 
 defined('MOODLE_INTERNAL') || die();
@@ -11,9 +34,14 @@ defined('MOODLE_INTERNAL') || die();
  * admin can validate end-to-end webhook plumbing without touching FastPix.
  *
  * Capability: local/fastpix:configurecredentials.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class send_test_event extends \core_external\external_api {
 
+    /** Web service parameter spec. */
     public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([]);
     }
@@ -44,9 +72,9 @@ class send_test_event extends \core_external\external_api {
             ];
         }
 
-        $event_id = 'test-event-' . time() . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
+        $eventid = 'test-event-' . time() . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
         $payload = json_encode([
-            'id'         => $event_id,
+            'id'         => $eventid,
             'type'       => 'video.media.created',
             'occurredAt' => time(),
             'object'     => ['type' => 'video.media', 'id' => 'test-asset-' . substr(bin2hex(random_bytes(6)), 0, 12)],
@@ -54,13 +82,13 @@ class send_test_event extends \core_external\external_api {
         ], JSON_UNESCAPED_SLASHES);
 
         // Sign using FastPix canonical shape: base64(hmac(base64_decode(secret), body)).
-        $decoded_secret = base64_decode($secret, true);
-        if ($decoded_secret === false || $decoded_secret === '') {
+        $decodedsecret = base64_decode($secret, true);
+        if ($decodedsecret === false || $decodedsecret === '') {
             // Fall back to raw-string keying so admins with a raw-string
             // (non-base64) secret still get a meaningful test.
-            $decoded_secret = $secret;
+            $decodedsecret = $secret;
         }
-        $signature = base64_encode(hash_hmac('sha256', $payload, $decoded_secret, true));
+        $signature = base64_encode(hash_hmac('sha256', $payload, $decodedsecret, true));
 
         $result = \local_fastpix\webhook\processor::process($payload, $signature);
 
@@ -80,11 +108,12 @@ class send_test_event extends \core_external\external_api {
             'success'   => $success,
             'ledger_id' => (int)($result['ledger_id'] ?? 0),
             'result'    => (string)$result['result'],
-            'event_id'  => $event_id,
+            'event_id'  => $eventid,
             'errors'    => $errors,
         ];
     }
 
+    /** Web service return spec. */
     public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'success' => new \core_external\external_value(

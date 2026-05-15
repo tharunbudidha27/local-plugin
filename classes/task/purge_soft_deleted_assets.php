@@ -1,4 +1,27 @@
 <?php
+
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Scheduled or adhoc task: purge soft deleted assets.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace local_fastpix\task;
 
 defined('MOODLE_INTERNAL') || die();
@@ -18,23 +41,33 @@ use local_fastpix\util\cache_keys;
  * Distinct from `asset_cleanup`, which handles a different lifecycle:
  * GDPR-pending rows where the local delete succeeded but the FastPix
  * delete failed (gdpr_delete_pending_at).
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class purge_soft_deleted_assets extends \core\task\scheduled_task {
 
+    /** @var string Asset table. */
     private const ASSET_TABLE = 'local_fastpix_asset';
+    /** @var string Track table. */
     private const TRACK_TABLE = 'local_fastpix_track';
 
+    /** @var int Retention seconds. */
     private const RETENTION_SECONDS = 604800; // 7 days (rule W10)
+    /** @var int Batch size. */
     private const BATCH_SIZE = 500;
 
+    /** Get name. */
     public function get_name(): string {
         return get_string('task_purge_soft_deleted_assets', 'local_fastpix');
     }
 
+    /** Web service main entry point. */
     public function execute(): void {
         global $DB;
 
-        $start_ms = (int)(microtime(true) * 1000);
+        $startms = (int)(microtime(true) * 1000);
         $cutoff = time() - self::RETENTION_SECONDS;
 
         $rows = $DB->get_records_select(
@@ -70,13 +103,13 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
             'deleted_at IS NOT NULL AND deleted_at < :cutoff',
             ['cutoff' => $cutoff],
         );
-        $elapsed_ms = (int)(microtime(true) * 1000) - $start_ms;
+        $elapsedms = (int)(microtime(true) * 1000) - $startms;
 
         mtrace(json_encode([
             'event'           => 'task.purge_soft_deleted_assets',
             'count_purged'    => $purged,
             'count_remaining' => $remaining,
-            'elapsed_ms'      => $elapsed_ms,
+            'elapsed_ms'      => $elapsedms,
             'batch_size'      => self::BATCH_SIZE,
         ]));
     }
