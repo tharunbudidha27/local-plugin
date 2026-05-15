@@ -33,7 +33,10 @@ namespace local_fastpix\exception;
 class gateway_not_found extends \moodle_exception {
     /**
      * Constructor.
-     **/    public function __construct(string $context = '') {
+     *
+     * @param string $context
+     */
+    public function __construct(string $context = '') {
         parent::__construct('gateway_not_found', 'local_fastpix', '', $context);
-}
+    }
 }

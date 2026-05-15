@@ -33,7 +33,10 @@ namespace local_fastpix\exception;
 class signing_key_missing extends \moodle_exception {
     /**
      * Constructor.
-     **/    public function __construct(string $context = '') {
+     *
+     * @param string $context
+     */
+    public function __construct(string $context = '') {
         parent::__construct('signing_key_missing', 'local_fastpix', '', $context);
-}
+    }
 }

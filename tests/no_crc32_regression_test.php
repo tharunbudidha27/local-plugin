@@ -46,7 +46,7 @@ final class no_crc32_regression_test extends \advanced_testcase {
 
     /**
      * Files explicitly exempted from the scan.
-     **/    private const ALLOWLIST = [
+     */    private const ALLOWLIST = [
         'tests/no_crc32_regression_test.php',
     ];
 

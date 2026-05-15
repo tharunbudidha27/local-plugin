@@ -43,7 +43,11 @@ class provider implements
     \core_privacy\local\request\plugin\provider {
     /**
      * Get metadata.
-     **/    public static function get_metadata(collection $collection): collection {
+     *
+     * @param collection $collection
+     * @return collection
+     */
+    public static function get_metadata(collection $collection): collection {
         $collection->add_database_table(
             'local_fastpix_asset',
             [
@@ -78,64 +82,77 @@ class provider implements
         );
 
         return $collection;
-}
+    }
 
     /**
      * Get contexts for userid.
-     **/    public static function get_contexts_for_userid(int $userid): contextlist {
+     *
+     * @param int $userid
+     * @return contextlist
+     */
+    public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new contextlist();
         $contextlist->add_system_context();
         return $contextlist;
-}
+    }
 
     /**
      * Get users in context.
-     **/    public static function get_users_in_context(userlist $userlist): void {
+     *
+     * @param userlist $userlist
+     */
+    public static function get_users_in_context(userlist $userlist): void {
         $context = $userlist->get_context();
-    if (!($context instanceof \context_system)) {
-        return;
-    }
+        if (!($context instanceof \context_system)) {
+            return;
+        }
 
         global $DB;
         $assets   = $DB->get_fieldset_select('local_fastpix_asset', 'owner_userid', 'owner_userid > 0');
         $sessions = $DB->get_fieldset_select('local_fastpix_upload_session', 'userid', 'userid > 0');
         $userlist->add_users(array_values(array_unique(array_merge($assets, $sessions))));
-}
+    }
 
     /**
      * Export user data.
-     **/    public static function export_user_data(approved_contextlist $contextlist): void {
-    if (empty($contextlist->count())) {
-        return;
-    }
+     *
+     * @param approved_contextlist $contextlist
+     */
+    public static function export_user_data(approved_contextlist $contextlist): void {
+        if (empty($contextlist->count())) {
+            return;
+        }
 
         global $DB;
         $userid  = $contextlist->get_user()->id;
         $context = \context_system::instance();
 
         $assets = $DB->get_records('local_fastpix_asset', ['owner_userid' => $userid]);
-    if (!empty($assets)) {
-        writer::with_context($context)->export_data(
-            [get_string('pluginname', 'local_fastpix'), 'assets'],
-            (object)['assets' => array_values($assets)],
-        );
-    }
+        if (!empty($assets)) {
+            writer::with_context($context)->export_data(
+                [get_string('pluginname', 'local_fastpix'), 'assets'],
+                (object)['assets' => array_values($assets)],
+            );
+        }
 
         $sessions = $DB->get_records('local_fastpix_upload_session', ['userid' => $userid]);
-    if (!empty($sessions)) {
-        writer::with_context($context)->export_data(
-            [get_string('pluginname', 'local_fastpix'), 'upload_sessions'],
-            (object)['sessions' => array_values($sessions)],
-        );
+        if (!empty($sessions)) {
+            writer::with_context($context)->export_data(
+                [get_string('pluginname', 'local_fastpix'), 'upload_sessions'],
+                (object)['sessions' => array_values($sessions)],
+            );
+        }
     }
-}
 
     /**
      * Delete data for all users in context.
-     **/    public static function delete_data_for_all_users_in_context(\context $context): void {
-    if (!($context instanceof \context_system)) {
-        return;
-    }
+     *
+     * @param \context $context
+     */
+    public static function delete_data_for_all_users_in_context(\context $context): void {
+        if (!($context instanceof \context_system)) {
+            return;
+        }
 
         global $DB;
         $now = time();
@@ -162,14 +179,17 @@ class provider implements
 
         // Upload sessions are transient; remove immediately.
         $DB->delete_records('local_fastpix_upload_session', []);
-}
+    }
 
     /**
      * Delete data for user.
-     **/    public static function delete_data_for_user(approved_contextlist $contextlist): void {
-    if (empty($contextlist->count())) {
-        return;
-    }
+     *
+     * @param approved_contextlist $contextlist
+     */
+    public static function delete_data_for_user(approved_contextlist $contextlist): void {
+        if (empty($contextlist->count())) {
+            return;
+        }
 
         global $DB;
         $userid = $contextlist->get_user()->id;
@@ -190,20 +210,23 @@ class provider implements
             ['uid' => $userid],
         );
         $DB->delete_records('local_fastpix_upload_session', ['userid' => $userid]);
-}
+    }
 
     /**
      * Delete data for users.
-     **/    public static function delete_data_for_users(approved_userlist $userlist): void {
+     *
+     * @param approved_userlist $userlist
+     */
+    public static function delete_data_for_users(approved_userlist $userlist): void {
         $context = $userlist->get_context();
-    if (!($context instanceof \context_system)) {
-        return;
-    }
+        if (!($context instanceof \context_system)) {
+            return;
+        }
 
         $userids = $userlist->get_userids();
-    if (empty($userids)) {
-        return;
-    }
+        if (empty($userids)) {
+            return;
+        }
 
         global $DB;
         $now = time();
@@ -224,5 +247,5 @@ class provider implements
             $params,
         );
         $DB->delete_records_select('local_fastpix_upload_session', "userid {$insql}", $params);
-}
+    }
 }

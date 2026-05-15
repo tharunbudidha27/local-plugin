@@ -36,51 +36,69 @@ class feature_flag_service {
 
     /**
      * Singleton accessor.
-     **/    public static function instance(): self {
+     *
+     * @return self
+     */
+    public static function instance(): self {
         return self::$instance ??= new self();
-}
+    }
 
     /**
      * Drm enabled.
-     **/    public function drm_enabled(): bool {
+     *
+     * @return bool
+     */
+    public function drm_enabled(): bool {
         // DOUBLE GATE: flag AND configuration_id (rule W12 / S-DRM).
         $flag = (bool)get_config('local_fastpix', 'feature_drm_enabled');
         $configid = (string)get_config('local_fastpix', 'drm_configuration_id');
         return $flag && $configid !== '';
-}
+    }
 
     /**
      * Watermark enabled.
-     **/    public function watermark_enabled(): bool {
+     *
+     * @return bool
+     */
+    public function watermark_enabled(): bool {
         return (bool)get_config('local_fastpix', 'feature_watermark_enabled');
-}
+    }
 
     /**
      * Tracking enabled.
-     **/    public function tracking_enabled(): bool {
+     *
+     * @return bool
+     */
+    public function tracking_enabled(): bool {
         return (bool)get_config('local_fastpix', 'feature_tracking_enabled');
-}
+    }
 
     /**
      * Drm configuration id.
-     **/    public function drm_configuration_id(): ?string {
+     *
+     * @return ?string
+     */
+    public function drm_configuration_id(): ?string {
         $id = (string)get_config('local_fastpix', 'drm_configuration_id');
         return $id !== '' ? $id : null;
-}
+    }
 
     /**
      * Snapshot.
-     **/    public function snapshot(): array {
+     *
+     * @return array
+     */
+    public function snapshot(): array {
         return [
             'drm'       => $this->drm_enabled(),
             'watermark' => $this->watermark_enabled(),
             'tracking'  => $this->tracking_enabled(),
         ];
-}
+    }
 
     /**
      * Reset the singleton (used by tests).
-     **/    public static function reset(): void {
+     */    public static function reset(): void {
         self::$instance = null;
 }
 }

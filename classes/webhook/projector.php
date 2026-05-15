@@ -45,10 +45,13 @@ class projector {
 
     /**
      * Constructor.
-     **/    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
+     *
+     * @param ?\core\lock\lock_factory $lockfactory
+     */
+    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
         $this->lockfactory = $lockfactory
             ?? \core\lock\lock_config::get_lock_factory(self::LOCK_FACTORY);
-}
+    }
 
     /**
      * Project a verified webhook event onto the asset row.
@@ -58,69 +61,73 @@ class projector {
      *
      * @param \stdClass $event
      */
-public function project(\stdClass $event): void {
-    $objecttype = (string)($event->object->type ?? '');
-    $fastpixid  = (string)($event->object->id ?? '');
+    public function project(\stdClass $event): void {
+        $objecttype = (string)($event->object->type ?? '');
+        $fastpixid  = (string)($event->object->id ?? '');
 
-    // Account-level / non-media events are not our concern.
-    if ($fastpixid === '' || !$this->is_media_object($objecttype)) {
-        return;
+        // Account-level / non-media events are not our concern.
+        if ($fastpixid === '' || !$this->is_media_object($objecttype)) {
+            return;
+        }
+
+        $resource = 'asset_' . $fastpixid;
+        $lock     = $this->lockfactory->get_lock($resource, self::LOCK_WAIT_SECONDS);
+
+        if ($lock === false) {
+            throw new lock_acquisition_failed('asset_' . $fastpixid);
+        }
+
+        try {
+            $this->project_inside_lock($event, $fastpixid);
+        } finally {
+            $lock->release();
+        }
     }
-
-    $resource = 'asset_' . $fastpixid;
-    $lock     = $this->lockfactory->get_lock($resource, self::LOCK_WAIT_SECONDS);
-
-    if ($lock === false) {
-        throw new lock_acquisition_failed('asset_' . $fastpixid);
-    }
-
-    try {
-        $this->project_inside_lock($event, $fastpixid);
-    } finally {
-        $lock->release();
-    }
-}
 
     /**
      * Project inside lock.
-     **/    private function project_inside_lock(\stdClass $event, string $fastpixid): void {
+     *
+     * @param \stdClass $event
+     * @param string $fastpixid
+     */
+    private function project_inside_lock(\stdClass $event, string $fastpixid): void {
         global $DB;
 
         $row = $DB->get_record(self::TABLE, ['fastpix_id' => $fastpixid]);
         $eventtype = (string)($event->type ?? '');
 
-    if ($row === false) {
-        // Real FastPix direct uploads never emit `video.media.created`;
-        // They go straight from `video.media.upload` (no asset yet) to.
-        // `Video.upload.media_created` (asset exists, has playbackIds).
-        // To `video.media.ready`. Out-of-order delivery may also drop the.
-        // Earlier of those two. Accept any of these as a row-insert trigger.
-        // — `video.media.upload` is the only one that does NOT carry the.
-        // Asset shape and is skipped (the next event will create the row).
-        $inserttriggers = [
+        if ($row === false) {
+            // Real FastPix direct uploads never emit `video.media.created`;
+            // They go straight from `video.media.upload` (no asset yet) to.
+            // `Video.upload.media_created` (asset exists, has playbackIds).
+            // To `video.media.ready`. Out-of-order delivery may also drop the.
+            // Earlier of those two. Accept any of these as a row-insert trigger.
+            // — `video.media.upload` is the only one that does NOT carry the.
+            // Asset shape and is skipped (the next event will create the row).
+            $inserttriggers = [
             'video.media.created',
             'video.upload.media_created',
             'video.media.ready',
             'video.media.updated',
-        ];
-        if (in_array($eventtype, $inserttriggers, true)) {
-            $row = $this->insert_from_created_event($event, $fastpixid);
-        } else {
-            debugging(
-                "projector: event {$eventtype} for unknown asset {$fastpixid}",
-                DEBUG_DEVELOPER,
-            );
+            ];
+            if (in_array($eventtype, $inserttriggers, true)) {
+                $row = $this->insert_from_created_event($event, $fastpixid);
+            } else {
+                debugging(
+                    "projector: event {$eventtype} for unknown asset {$fastpixid}",
+                    DEBUG_DEVELOPER,
+                );
+                return;
+            }
+        }
+
+        if ($this->is_out_of_order($event, $row)) {
             return;
         }
-    }
 
-    if ($this->is_out_of_order($event, $row)) {
-        return;
-    }
-
-    if (!$this->handle_event($event, $row)) {
-        return;
-    }
+        if (!$this->handle_event($event, $row)) {
+            return;
+        }
 
         $row->last_event_id = (string)$event->id;
         $row->last_event_at = $this->event_timestamp($event);
@@ -135,13 +142,17 @@ public function project(\stdClass $event): void {
         // After projecting media events, link any matching upload_session.
         // Row by upload_id == fastpix_id (URL pulls + direct uploads).
         $this->link_upload_session((string)$row->fastpix_id);
-}
+    }
 
     /**
      * Whether media object.
-     **/    private function is_media_object(string $objecttype): bool {
+     *
+     * @param string $objecttype
+     * @return bool
+     */
+    private function is_media_object(string $objecttype): bool {
         return in_array($objecttype, ['video.media', 'media'], true);
-}
+    }
 
     /**
      * Resolve the event's wall-clock timestamp.
@@ -155,17 +166,17 @@ public function project(\stdClass $event): void {
      * @param \stdClass $event
      * @return int
      */
-private function event_timestamp(\stdClass $event): int {
-    if (isset($event->occurredAt) && is_numeric($event->occurredAt)) {
-        return (int)$event->occurredAt;
+    private function event_timestamp(\stdClass $event): int {
+        if (isset($event->occurredAt) && is_numeric($event->occurredAt)) {
+            return (int)$event->occurredAt;
+        }
+        if (isset($event->createdAt)) {
+            $iso = preg_replace('/\.\d+/', '', (string)$event->createdAt);
+            $ts = strtotime($iso);
+            return $ts !== false ? $ts : 0;
+        }
+        return 0;
     }
-    if (isset($event->createdAt)) {
-        $iso = preg_replace('/\.\d+/', '', (string)$event->createdAt);
-        $ts = strtotime($iso);
-        return $ts !== false ? $ts : 0;
-    }
-    return 0;
-}
 
     /**
      * Total ordering with lex tiebreak on event_id.
@@ -174,23 +185,23 @@ private function event_timestamp(\stdClass $event): int {
      * @param \stdClass $row
      * @return bool
      */
-private function is_out_of_order(\stdClass $event, \stdClass $row): bool {
-    if ($row->last_event_at === null) {
-        return false;
-    }
+    private function is_out_of_order(\stdClass $event, \stdClass $row): bool {
+        if ($row->last_event_at === null) {
+            return false;
+        }
 
-    $eventat = $this->event_timestamp($event);
-    $lastat  = (int)$row->last_event_at;
+        $eventat = $this->event_timestamp($event);
+        $lastat  = (int)$row->last_event_at;
 
-    if ($eventat < $lastat) {
-        return true;
+        if ($eventat < $lastat) {
+            return true;
+        }
+        if ($eventat > $lastat) {
+            return false;
+        }
+        // Equal timestamps — tiebreak by event_id; smaller-or-equal IDs lose.
+        return strcmp((string)$event->id, (string)$row->last_event_id) <= 0;
     }
-    if ($eventat > $lastat) {
-        return false;
-    }
-    // Equal timestamps — tiebreak by event_id; smaller-or-equal IDs lose.
-    return strcmp((string)$event->id, (string)$row->last_event_id) <= 0;
-}
 
     /**
      * Apply the event's data onto $row. Returns true if applied, false if the
@@ -200,70 +211,75 @@ private function is_out_of_order(\stdClass $event, \stdClass $row): bool {
      * @param \stdClass $row
      * @return bool
      */
-private function handle_event(\stdClass $event, \stdClass $row): bool {
-    $type = (string)($event->type ?? '');
-    $data = $event->data ?? new \stdClass();
+    private function handle_event(\stdClass $event, \stdClass $row): bool {
+        $type = (string)($event->type ?? '');
+        $data = $event->data ?? new \stdClass();
 
-    switch ($type) {
-        case 'video.media.created':
-            // Real FastPix `video.media.created` carries data.playbackIds.
-            // (observed 2026-05-08). Insert path also reads them, but if.
-            // The row was inserted from an earlier `.upload` event the.
-            // Playback id needs to be applied here.
-            $this->apply_first_playback_id($data, $row);
-            return true;
+        switch ($type) {
+            case 'video.media.created':
+                // Real FastPix `video.media.created` carries data.playbackIds.
+                // (observed 2026-05-08). Insert path also reads them, but if.
+                // The row was inserted from an earlier `.upload` event the.
+                // Playback id needs to be applied here.
+                $this->apply_first_playback_id($data, $row);
+                return true;
 
-        case 'video.media.upload':
-            if (isset($data->status)) {
-                $row->status = (string)$data->status;
-            }
-            return true;
+            case 'video.media.upload':
+                if (isset($data->status)) {
+                    $row->status = (string)$data->status;
+                }
+                return true;
 
-        case 'video.upload.media_created':
-            $this->apply_first_playback_id($data, $row);
-            if ($row->status === 'waiting' || $row->status === '') {
-                $row->status = 'created';
-            }
-            return true;
+            case 'video.upload.media_created':
+                $this->apply_first_playback_id($data, $row);
+                if ($row->status === 'waiting' || $row->status === '') {
+                    $row->status = 'created';
+                }
+                return true;
 
-        case 'video.media.ready':
-            $row->status = 'ready';
-            $this->apply_first_playback_id($data, $row);
-            $duration = $this->parse_duration($data->duration ?? null);
-            if ($duration !== null) {
-                $row->duration = $duration;
-            }
-            $row->has_captions = $this->count_caption_tracks($data) > 0 ? 1 : 0;
-            return true;
+            case 'video.media.ready':
+                $row->status = 'ready';
+                $this->apply_first_playback_id($data, $row);
+                $duration = $this->parse_duration($data->duration ?? null);
+                if ($duration !== null) {
+                    $row->duration = $duration;
+                }
+                $row->has_captions = $this->count_caption_tracks($data) > 0 ? 1 : 0;
+                return true;
 
-        case 'video.media.updated':
-            if (isset($data->status)) {
-                $row->status = (string)$data->status;
-            }
-            $duration = $this->parse_duration($data->duration ?? null);
-            if ($duration !== null) {
-                $row->duration = $duration;
-            }
-            return true;
+            case 'video.media.updated':
+                if (isset($data->status)) {
+                    $row->status = (string)$data->status;
+                }
+                $duration = $this->parse_duration($data->duration ?? null);
+                if ($duration !== null) {
+                    $row->duration = $duration;
+                }
+                return true;
 
-        case 'video.media.failed':
-            $row->status = 'errored';
-            return true;
+            case 'video.media.failed':
+                $row->status = 'errored';
+                return true;
 
-        case 'video.media.deleted':
-            $row->deleted_at = time();
-            return true;
+            case 'video.media.deleted':
+                $row->deleted_at = time();
+                return true;
 
-        default:
-            // Unhandled type — let event_dispatcher (Phase 4) take over.
-            debugging("projector: no handler for {$type}", DEBUG_DEVELOPER);
-            return false;
+            default:
+                // Unhandled type — let event_dispatcher (Phase 4) take over.
+                debugging("projector: no handler for {$type}", DEBUG_DEVELOPER);
+                return false;
+        }
     }
-}
 
     /**
      * Insert from created event.
-     **/    private function insert_from_created_event(\stdClass $event, string $fastpixid): \stdClass {
+     *
+     * @param \stdClass $event
+     * @param string $fastpixid
+     * @return \stdClass
+     */
+    private function insert_from_created_event(\stdClass $event, string $fastpixid): \stdClass {
         global $DB;
 
         $data = $event->data ?? new \stdClass();
@@ -290,7 +306,7 @@ private function handle_event(\stdClass $event, \stdClass $row): bool {
         $this->apply_first_playback_id($data, $row);
         $row->id = $DB->insert_record(self::TABLE, $row);
         return $row;
-}
+    }
 
     /**
      * Extract the first entry from data.playbackIds and write it onto $row.
@@ -302,22 +318,22 @@ private function handle_event(\stdClass $event, \stdClass $row): bool {
      * @param \stdClass $data
      * @param \stdClass $row
      */
-private function apply_first_playback_id(\stdClass $data, \stdClass $row): void {
-    if (empty($data->playbackIds) || !is_array($data->playbackIds)) {
-        return;
+    private function apply_first_playback_id(\stdClass $data, \stdClass $row): void {
+        if (empty($data->playbackIds) || !is_array($data->playbackIds)) {
+            return;
+        }
+        $pb = (object)$data->playbackIds[0];
+        $id = (string)($pb->id ?? '');
+        if ($id === '') {
+            return;
+        }
+        $row->playback_id = $id;
+        $policy = (string)($pb->accessPolicy ?? '');
+        if (in_array($policy, ['public', 'private', 'drm'], true)) {
+            $row->access_policy = $policy;
+            $row->drm_required  = $policy === 'drm' ? 1 : 0;
+        }
     }
-    $pb = (object)$data->playbackIds[0];
-    $id = (string)($pb->id ?? '');
-    if ($id === '') {
-        return;
-    }
-    $row->playback_id = $id;
-    $policy = (string)($pb->accessPolicy ?? '');
-    if (in_array($policy, ['public', 'private', 'drm'], true)) {
-        $row->access_policy = $policy;
-        $row->drm_required  = $policy === 'drm' ? 1 : 0;
-    }
-}
 
     /**
      * FastPix sends duration as either a numeric (legacy test fixtures) or
@@ -329,18 +345,18 @@ private function apply_first_playback_id(\stdClass $data, \stdClass $row): void 
      * @param mixed $value
      * @return ?float
      */
-private function parse_duration($value): ?float {
-    if ($value === null || $value === '') {
+    private function parse_duration($value): ?float {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        if (is_string($value) && preg_match('/^(\d+):(\d+):(\d+(?:\.\d+)?)$/', $value, $m)) {
+            return ((int)$m[1]) * 3600 + ((int)$m[2]) * 60 + (float)$m[3];
+        }
         return null;
     }
-    if (is_numeric($value)) {
-        return (float)$value;
-    }
-    if (is_string($value) && preg_match('/^(\d+):(\d+):(\d+(?:\.\d+)?)$/', $value, $m)) {
-        return ((int)$m[1]) * 3600 + ((int)$m[2]) * 60 + (float)$m[3];
-    }
-    return null;
-}
 
     /**
      * FastPix uses one UUID for both upload-session and media on URL pulls.
@@ -350,43 +366,51 @@ private function parse_duration($value): ?float {
      *
      * @param string $fastpixid
      */
-private function link_upload_session(string $fastpixid): void {
-    global $DB;
-    $DB->execute(
-        "UPDATE {local_fastpix_upload_session}
+    private function link_upload_session(string $fastpixid): void {
+        global $DB;
+        $DB->execute(
+            "UPDATE {local_fastpix_upload_session}
                 SET fastpix_id = :fpid, state = 'created'
               WHERE upload_id = :upid AND fastpix_id IS NULL",
-        ['fpid' => $fastpixid, 'upid' => $fastpixid]
-    );
-}
+            ['fpid' => $fastpixid, 'upid' => $fastpixid]
+        );
+    }
 
     /**
      * Count caption tracks.
-     **/    private function count_caption_tracks(\stdClass $data): int {
-    if (empty($data->tracks) || !is_array($data->tracks)) {
-        return 0;
-    }
-        $count = 0;
-    foreach ($data->tracks as $track) {
-        $kind = (string)($track->type ?? '');
-        if ($kind === 'subtitle' || $kind === 'caption') {
-            $count++;
+     *
+     * @param \stdClass $data
+     * @return int
+     */
+    private function count_caption_tracks(\stdClass $data): int {
+        if (empty($data->tracks) || !is_array($data->tracks)) {
+            return 0;
         }
-    }
+        $count = 0;
+        foreach ($data->tracks as $track) {
+            $kind = (string)($track->type ?? '');
+            if ($kind === 'subtitle' || $kind === 'caption') {
+                $count++;
+            }
+        }
         return $count;
-}
+    }
 
     // Cache invalidation (mirrors asset_service helpers).
 
     /**
      * Invalidate cache.
-     **/    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+     *
+     * @param string $fastpixid
+     * @param ?string $playbackid
+     */
+    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = \cache::make('local_fastpix', 'asset');
         $cache->delete(\local_fastpix\util\cache_keys::fastpix($fastpixid));
-    if (!empty($playbackid)) {
-        $cache->delete(\local_fastpix\util\cache_keys::playback($playbackid));
+        if (!empty($playbackid)) {
+            $cache->delete(\local_fastpix\util\cache_keys::playback($playbackid));
+        }
     }
-}
 
     /**
      * Reflection seam for tests that verify the projector targets the same
@@ -396,13 +420,17 @@ private function link_upload_session(string $fastpixid): void {
      * @param string $fastpixid
      * @return string
      */
-private function cache_key_fastpix(string $fastpixid): string {
-    return \local_fastpix\util\cache_keys::fastpix($fastpixid);
-}
+    private function cache_key_fastpix(string $fastpixid): string {
+        return \local_fastpix\util\cache_keys::fastpix($fastpixid);
+    }
 
     /**
      * Cache helper for key playback.
-     **/    private function cache_key_playback(string $playbackid): string {
+     *
+     * @param string $playbackid
+     * @return string
+     */
+    private function cache_key_playback(string $playbackid): string {
         return \local_fastpix\util\cache_keys::playback($playbackid);
-}
+    }
 }

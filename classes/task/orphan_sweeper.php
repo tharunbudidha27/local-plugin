@@ -40,13 +40,16 @@ class orphan_sweeper extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     **/    public function get_name(): string {
+     *
+     * @return string
+     */
+    public function get_name(): string {
         return get_string('task_orphan_sweeper', 'local_fastpix');
-}
+    }
 
     /**
      * Web service main entry point.
-     **/    public function execute(): void {
+     */    public function execute(): void {
         global $DB;
 
         $now = time();
@@ -61,19 +64,19 @@ class orphan_sweeper extends \core\task\scheduled_task {
         );
 
         $orphaned = 0;
-    foreach ($rows as $row) {
-        if (!empty($row->upload_id)) {
-            try {
-                \local_fastpix\api\gateway::instance()->delete_media($row->upload_id);
-            } catch (\Throwable $e) {
-                mtrace("orphan_sweeper: gateway delete failed for upload_id={$row->upload_id}: "
+        foreach ($rows as $row) {
+            if (!empty($row->upload_id)) {
+                try {
+                    \local_fastpix\api\gateway::instance()->delete_media($row->upload_id);
+                } catch (\Throwable $e) {
+                    mtrace("orphan_sweeper: gateway delete failed for upload_id={$row->upload_id}: "
                     . $e->getMessage());
+                }
             }
-        }
 
-        $DB->set_field(self::TABLE, 'state', 'orphaned', ['id' => $row->id]);
-        $orphaned++;
-    }
+            $DB->set_field(self::TABLE, 'state', 'orphaned', ['id' => $row->id]);
+            $orphaned++;
+        }
 
         mtrace("orphan_sweeper: orphaned {$orphaned} expired session(s)");
 }

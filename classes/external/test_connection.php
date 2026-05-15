@@ -40,45 +40,51 @@ namespace local_fastpix\external;
 class test_connection extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     **/    public static function execute_parameters(): \core_external\external_function_parameters {
+     *
+     * @return \core_external\external_function_parameters
+     */
+    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([]);
-}
+    }
 
     /**
      * Execute.
      *
      * @return array{success: bool, latency_ms: int, error: string|null}
      */
-public static function execute(): array {
-    $context = \context_system::instance();
-    self::validate_context($context);
-    require_login(null, false);
-    require_sesskey();
-    require_capability('local/fastpix:configurecredentials', $context);
+    public static function execute(): array {
+        $context = \context_system::instance();
+        self::validate_context($context);
+        require_login(null, false);
+        require_sesskey();
+        require_capability('local/fastpix:configurecredentials', $context);
 
-    $start = microtime(true);
-    $success = false;
-    $error = null;
-    try {
-        $success = (bool)\local_fastpix\api\gateway::instance()->health_probe();
-        if (!$success) {
-            $error = 'health_probe returned false';
+        $start = microtime(true);
+        $success = false;
+        $error = null;
+        try {
+            $success = (bool)\local_fastpix\api\gateway::instance()->health_probe();
+            if (!$success) {
+                $error = 'health_probe returned false';
+            }
+        } catch (\Throwable $e) {
+            $error = get_class($e) . ': ' . $e->getMessage();
         }
-    } catch (\Throwable $e) {
-        $error = get_class($e) . ': ' . $e->getMessage();
-    }
-    $latencyms = (int)((microtime(true) - $start) * 1000);
+        $latencyms = (int)((microtime(true) - $start) * 1000);
 
-    return [
+        return [
         'success'    => $success,
         'latency_ms' => $latencyms,
         'error'      => $error,
-    ];
-}
+        ];
+    }
 
     /**
      * Web service return spec.
-     **/    public static function execute_returns(): \core_external\external_single_structure {
+     *
+     * @return \core_external\external_single_structure
+     */
+    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'success' => new \core_external\external_value(
                 PARAM_BOOL,
@@ -96,5 +102,5 @@ public static function execute(): array {
                 NULL_ALLOWED
             ),
         ]);
-}
+    }
 }

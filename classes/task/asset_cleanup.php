@@ -42,13 +42,16 @@ class asset_cleanup extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     **/    public function get_name(): string {
+     *
+     * @return string
+     */
+    public function get_name(): string {
         return get_string('task_asset_cleanup', 'local_fastpix');
-}
+    }
 
     /**
      * Web service main entry point.
-     **/    public function execute(): void {
+     */    public function execute(): void {
         global $DB;
 
         $cutoff = time() - self::RETENTION_SECONDS;
@@ -63,33 +66,37 @@ class asset_cleanup extends \core\task\scheduled_task {
         );
 
         $deleted = 0;
-    foreach ($rows as $row) {
-        try {
-            if (!empty($row->fastpix_id)) {
-                try {
-                    \local_fastpix\api\gateway::instance()->delete_media((string)$row->fastpix_id);
-                } catch (\Throwable $e) {
-                    mtrace("asset_cleanup: gateway delete failed for {$row->fastpix_id}: "
+        foreach ($rows as $row) {
+            try {
+                if (!empty($row->fastpix_id)) {
+                    try {
+                        \local_fastpix\api\gateway::instance()->delete_media((string)$row->fastpix_id);
+                    } catch (\Throwable $e) {
+                        mtrace("asset_cleanup: gateway delete failed for {$row->fastpix_id}: "
                         . $e->getMessage());
+                    }
                 }
-            }
 
-            $DB->delete_records(self::TABLE, ['id' => (int)$row->id]);
-            $this->invalidate_cache((string)$row->fastpix_id, $row->playback_id ?? null);
-            $deleted++;
-        } catch (\Throwable $e) {
-            // Per-row failure must not abort the batch.
-            mtrace("asset_cleanup: row id={$row->id} failed: " . $e->getMessage());
+                $DB->delete_records(self::TABLE, ['id' => (int)$row->id]);
+                $this->invalidate_cache((string)$row->fastpix_id, $row->playback_id ?? null);
+                $deleted++;
+            } catch (\Throwable $e) {
+                // Per-row failure must not abort the batch.
+                mtrace("asset_cleanup: row id={$row->id} failed: " . $e->getMessage());
+            }
         }
-    }
 
         mtrace("asset_cleanup: hard-deleted {$deleted} asset(s) past 90-day GDPR retention");
 }
 
     /**
      * Invalidate cache.
-     **/    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
-        $cache = \cache::make('local_fastpix', 'asset');
+     *
+     * @param string $fastpixid
+     * @param ?string $playbackid
+     */
+private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+    $cache = \cache::make('local_fastpix', 'asset');
     if ($fastpixid !== '') {
         $cache->delete('fp_' . substr(hash('sha256', $fastpixid), 0, 32));
     }

@@ -43,33 +43,36 @@ class webhook_event_pruner extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     **/    public function get_name(): string {
+     *
+     * @return string
+     */
+    public function get_name(): string {
         return get_string('task_webhook_event_pruner', 'local_fastpix');
-}
+    }
 
     /**
      * Web service main entry point.
-     **/    public function execute(): void {
+     */    public function execute(): void {
         global $DB;
 
         $cutoff = time() - self::RETENTION_SECONDS;
 
-    try {
-        $count = $DB->count_records_select(
-            self::TABLE,
-            "status = :status AND received_at < :cutoff",
-            ['status' => 'processed', 'cutoff' => $cutoff],
-        );
+        try {
+            $count = $DB->count_records_select(
+                self::TABLE,
+                "status = :status AND received_at < :cutoff",
+                ['status' => 'processed', 'cutoff' => $cutoff],
+            );
 
-        $DB->delete_records_select(
-            self::TABLE,
-            "status = :status AND received_at < :cutoff",
-            ['status' => 'processed', 'cutoff' => $cutoff],
-        );
+            $DB->delete_records_select(
+                self::TABLE,
+                "status = :status AND received_at < :cutoff",
+                ['status' => 'processed', 'cutoff' => $cutoff],
+            );
 
-        mtrace("webhook_event_pruner: deleted {$count} processed event(s) older than 90 days");
-    } catch (\Throwable $e) {
-        mtrace('webhook_event_pruner: prune failed: ' . $e->getMessage());
-    }
+            mtrace("webhook_event_pruner: deleted {$count} processed event(s) older than 90 days");
+        } catch (\Throwable $e) {
+            mtrace('webhook_event_pruner: prune failed: ' . $e->getMessage());
+        }
 }
 }

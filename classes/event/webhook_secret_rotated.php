@@ -35,7 +35,7 @@ namespace local_fastpix\event;
 class webhook_secret_rotated extends \core\event\base {
     /**
      * Init.
-     **/    protected function init() {
+     */    protected function init() {
         $this->data['crud']        = 'u';
         $this->data['edulevel']    = self::LEVEL_OTHER;
         $this->data['objecttable'] = null;
@@ -43,13 +43,13 @@ class webhook_secret_rotated extends \core\event\base {
 
     /**
      * Get name.
-     **/    public static function get_name() {
+     */    public static function get_name() {
         return get_string('event_webhook_secret_rotated', 'local_fastpix');
 }
 
     /**
      * Get description.
-     **/    public function get_description() {
+     */    public function get_description() {
         $when = (int)($this->other['rotated_at'] ?? 0);
         return 'Webhook signing secret rotated at ' . userdate($when);
 }

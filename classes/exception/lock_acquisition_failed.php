@@ -33,7 +33,10 @@ namespace local_fastpix\exception;
 class lock_acquisition_failed extends \moodle_exception {
     /**
      * Constructor.
-     **/    public function __construct(string $context = '') {
+     *
+     * @param string $context
+     */
+    public function __construct(string $context = '') {
         parent::__construct('lock_acquisition_failed', 'local_fastpix', '', $context);
-}
+    }
 }

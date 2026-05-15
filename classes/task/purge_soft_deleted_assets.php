@@ -54,13 +54,16 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     **/    public function get_name(): string {
+     *
+     * @return string
+     */
+    public function get_name(): string {
         return get_string('task_purge_soft_deleted_assets', 'local_fastpix');
-}
+    }
 
     /**
      * Web service main entry point.
-     **/    public function execute(): void {
+     */    public function execute(): void {
         global $DB;
 
         $startms = (int)(microtime(true) * 1000);
@@ -79,20 +82,20 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
         $purged = 0;
         $cache = \cache::make('local_fastpix', 'asset');
 
-    foreach ($rows as $row) {
-        try {
-            $DB->delete_records(self::TRACK_TABLE, ['asset_id' => (int)$row->id]);
-            $DB->delete_records(self::ASSET_TABLE, ['id' => (int)$row->id]);
+        foreach ($rows as $row) {
+            try {
+                $DB->delete_records(self::TRACK_TABLE, ['asset_id' => (int)$row->id]);
+                $DB->delete_records(self::ASSET_TABLE, ['id' => (int)$row->id]);
 
-            $cache->delete(cache_keys::fastpix((string)$row->fastpix_id));
-            if (!empty($row->playback_id)) {
-                $cache->delete(cache_keys::playback((string)$row->playback_id));
+                $cache->delete(cache_keys::fastpix((string)$row->fastpix_id));
+                if (!empty($row->playback_id)) {
+                    $cache->delete(cache_keys::playback((string)$row->playback_id));
+                }
+                $purged++;
+            } catch (\Throwable $e) {
+                mtrace("purge_soft_deleted_assets: failed to purge id={$row->id}: " . $e->getMessage());
             }
-            $purged++;
-        } catch (\Throwable $e) {
-            mtrace("purge_soft_deleted_assets: failed to purge id={$row->id}: " . $e->getMessage());
         }
-    }
 
         $remaining = $DB->count_records_select(
             self::ASSET_TABLE,

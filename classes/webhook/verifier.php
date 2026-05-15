@@ -45,18 +45,21 @@ class verifier {
 
     /**
      * Constructor.
-     **/    private function __construct() {
+     */    private function __construct() {
 }
 
     /**
      * Singleton accessor.
-     **/    public static function instance(): self {
-        return self::$instance ??= new self();
+     *
+     * @return self
+     */
+public static function instance(): self {
+    return self::$instance ??= new self();
 }
 
     /**
      * Reset the singleton (used by tests).
-     **/    public static function reset(): void {
+     */    public static function reset(): void {
         self::$instance = null;
 }
 

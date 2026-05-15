@@ -35,7 +35,10 @@ namespace local_fastpix\hook;
 class after_config_callback {
     /**
      * Handle.
-     **/    public static function handle(\core\hook\after_config $hook): void {
+     *
+     * @param \core\hook\after_config $hook
+     */
+    public static function handle(\core\hook\after_config $hook): void {
         // Intentionally empty until Phase 2.
-}
+    }
 }

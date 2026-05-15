@@ -66,7 +66,7 @@ class gateway {
 
     /**
      * Max response body length the gateway will decode (defensive).
-     **/    private const MAX_RESPONSE_BYTES = 5242880; // 5 MiB.
+     */    private const MAX_RESPONSE_BYTES = 5242880; // 5 MiB.
 
     /** @var ?self $instance */
     /** @var mixed */
@@ -74,7 +74,7 @@ class gateway {
 
     /**
      * Constructor.
-     **/    private function __construct(
+     */    private function __construct(
     /** @var mixed Http. */
     private \core\http_client $http,
     /** @var mixed Breakercache. */
@@ -86,7 +86,10 @@ class gateway {
 
     /**
      * Singleton accessor.
-     **/    public static function instance(): self {
+     *
+     * @return self
+     */
+public static function instance(): self {
     if (self::$instance === null) {
         self::$instance = new self(
             new \core\http_client(),
@@ -94,12 +97,12 @@ class gateway {
             credential_service::instance(),
         );
     }
-        return self::$instance;
+    return self::$instance;
 }
 
     /**
      * Reset the singleton (used by tests).
-     **/    public static function reset(): void {
+     */    public static function reset(): void {
         self::$instance = null;
 }
 
@@ -271,27 +274,35 @@ public function health_probe(): bool {
 
     /**
      * Request.
-     **/    private function request(
+     *
+     * @param string $method
+     * @param string $path
+     * @param ?array $body
+     * @param array $profile
+     * @param ?string $idempotencykey
+     * @return \stdClass
+     */
+private function request(
     string $method,
     string $path,
     ?array $body,
     array $profile,
     ?string $idempotencykey,
 ): \stdClass {
-        $endpointkey = $this->endpoint_key($method, $path);
-        $requestid   = 'req_' . random_string(12);
-        $host         = $this->host_from_base();
+    $endpointkey = $this->endpoint_key($method, $path);
+    $requestid   = 'req_' . random_string(12);
+    $host         = $this->host_from_base();
 
     if ($this->breaker_is_open($endpointkey)) {
         $this->log_call($endpointkey, 0, 0, 0, $profile, 'open', $method, $host, $path, $requestid);
         throw new gateway_unavailable("circuit_open:{$endpointkey}");
     }
 
-        $start = microtime(true);
-        $attempt = 0;
-        $lasterror = null;
-        $lastbody  = '';
-        $delayms = 0;
+    $start = microtime(true);
+    $attempt = 0;
+    $lasterror = null;
+    $lastbody  = '';
+    $delayms = 0;
 
     while ($attempt < self::RETRY_MAX_ATTEMPTS) {
         $attempt++;
@@ -373,9 +384,9 @@ public function health_probe(): bool {
         }
     }
 
-        $this->breaker_record_failure($endpointkey);
-        $bodytag = $lastbody !== '' ? " body={$lastbody}" : '';
-        throw new gateway_unavailable("retries_exhausted:{$lasterror}:{$endpointkey}{$bodytag}");
+    $this->breaker_record_failure($endpointkey);
+    $bodytag = $lastbody !== '' ? " body={$lastbody}" : '';
+    throw new gateway_unavailable("retries_exhausted:{$lasterror}:{$endpointkey}{$bodytag}");
 }
 
     /**
@@ -398,58 +409,75 @@ private function body_snippet($response): string {
 
     /**
      * Whether retryable.
-     **/    private function is_retryable(int $status): bool {
-        // 408 (Request Timeout) is transient under sustained load; retry per.
-        // FastPix docs.
-        return in_array($status, [408, 429, 500, 502, 503, 504], true);
+     *
+     * @param int $status
+     * @return bool
+     */
+private function is_retryable(int $status): bool {
+    // 408 (Request Timeout) is transient under sustained load; retry per.
+    // FastPix docs.
+    return in_array($status, [408, 429, 500, 502, 503, 504], true);
 }
 
     /**
      * Parse retry after.
-     **/    private function parse_retry_after($response): int {
-        $header = $response->getHeaderLine('Retry-After');
+     *
+     * @param mixed $response
+     * @return int
+     */
+private function parse_retry_after($response): int {
+    $header = $response->getHeaderLine('Retry-After');
     if ($header === '' || !ctype_digit(trim($header))) {
         return 1;
     }
-        return max(0, (int)$header);
+    return max(0, (int)$header);
 }
 
     /**
      * Decode body.
-     **/    private function decode_body($response): \stdClass {
-        // Defensive bound against malicious upstream returning unbounded bytes.
-        $advertised = (int)$response->getHeaderLine('Content-Length');
+     *
+     * @param mixed $response
+     * @return \stdClass
+     */
+private function decode_body($response): \stdClass {
+    // Defensive bound against malicious upstream returning unbounded bytes.
+    $advertised = (int)$response->getHeaderLine('Content-Length');
     if ($advertised > self::MAX_RESPONSE_BYTES) {
         throw new gateway_invalid_response('response_too_large');
     }
-        $raw = (string)$response->getBody();
+    $raw = (string)$response->getBody();
     if (strlen($raw) > self::MAX_RESPONSE_BYTES) {
         throw new gateway_invalid_response('response_too_large');
     }
     if ($raw === '') {
         return new \stdClass();
     }
-        $decoded = json_decode($raw);
+    $decoded = json_decode($raw);
     if (!($decoded instanceof \stdClass) && !is_array($decoded)) {
         throw new gateway_invalid_response('json_decode_failed');
     }
-        return is_array($decoded) ? (object)['data' => $decoded] : $decoded;
+    return is_array($decoded) ? (object)['data' => $decoded] : $decoded;
 }
 
     /**
      * Build headers.
-     **/    private function build_headers(?string $idempotencykey, ?string $requestid = null): array {
-        $headers = [
-            'Accept'     => 'application/json',
-            'User-Agent' => 'local_fastpix/' . (string)get_config('local_fastpix', 'version'),
-        ];
-        if ($idempotencykey !== null) {
-            $headers['Idempotency-Key'] = $idempotencykey;
-        }
-        if ($requestid !== null && $requestid !== '') {
-            $headers['X-Request-Id'] = $requestid;
-        }
-        return $headers;
+     *
+     * @param ?string $idempotencykey
+     * @param ?string $requestid
+     * @return array
+     */
+private function build_headers(?string $idempotencykey, ?string $requestid = null): array {
+    $headers = [
+        'Accept'     => 'application/json',
+        'User-Agent' => 'local_fastpix/' . (string)get_config('local_fastpix', 'version'),
+    ];
+    if ($idempotencykey !== null) {
+        $headers['Idempotency-Key'] = $idempotencykey;
+    }
+    if ($requestid !== null && $requestid !== '') {
+        $headers['X-Request-Id'] = $requestid;
+    }
+    return $headers;
 }
 
     /**
@@ -464,64 +492,100 @@ private function host_from_base(): string {
 
     /**
      * Idempotency key.
-     **/    private function idempotency_key(string $operation, string $ownerhash, ?array $body): string {
-        $payloadhash = $body !== null ? hash('sha256', json_encode($body)) : '-';
-        return hash('sha256', "{$operation}:{$ownerhash}:{$payloadhash}");
+     *
+     * @param string $operation
+     * @param string $ownerhash
+     * @param ?array $body
+     * @return string
+     */
+private function idempotency_key(string $operation, string $ownerhash, ?array $body): string {
+    $payloadhash = $body !== null ? hash('sha256', json_encode($body)) : '-';
+    return hash('sha256', "{$operation}:{$ownerhash}:{$payloadhash}");
 }
 
     /**
      * Endpoint key.
-     **/    private function endpoint_key(string $method, string $path): string {
-        // MUC area 'circuit_breaker' is declared simplekeys=true, so the key must be.
-        // Alphanumeric only. SHA-256 prefix (32 hex chars) gives 128 bits of collision.
-        // Resistance — replacing CRC32 (32-bit) per REVIEW-2026-05-04 §S-1.
-        return substr(hash('sha256', $method . ':' . $path), 0, 32);
+     *
+     * @param string $method
+     * @param string $path
+     * @return string
+     */
+private function endpoint_key(string $method, string $path): string {
+    // MUC area 'circuit_breaker' is declared simplekeys=true, so the key must be.
+    // Alphanumeric only. SHA-256 prefix (32 hex chars) gives 128 bits of collision.
+    // Resistance — replacing CRC32 (32-bit) per REVIEW-2026-05-04 §S-1.
+    return substr(hash('sha256', $method . ':' . $path), 0, 32);
 }
 
     /**
      * Base url.
-     **/    private function base_url(): string {
-        $configured = (string)get_config('local_fastpix', 'fastpix_base_url');
-        return $configured !== '' ? rtrim($configured, '/') : self::DEFAULT_BASE_URL;
+     *
+     * @return string
+     */
+private function base_url(): string {
+    $configured = (string)get_config('local_fastpix', 'fastpix_base_url');
+    return $configured !== '' ? rtrim($configured, '/') : self::DEFAULT_BASE_URL;
 }
 
     // Circuit breaker (MUC-backed; multi-FPM correctness).
 
     /**
      * Breaker is open.
-     **/    private function breaker_is_open(string $key): bool {
-        $state = $this->breakercache->get($key);
+     *
+     * @param string $key
+     * @return bool
+     */
+private function breaker_is_open(string $key): bool {
+    $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         return false;
     }
-        return ($state['open_until'] ?? 0) > time();
+    return ($state['open_until'] ?? 0) > time();
 }
 
     /**
      * Breaker record failure.
-     **/    private function breaker_record_failure(string $key): void {
-        $state = $this->breakercache->get($key);
+     *
+     * @param string $key
+     */
+private function breaker_record_failure(string $key): void {
+    $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         $state = ['failures' => 0, 'open_until' => 0];
     }
-        $state['failures'] = ($state['failures'] ?? 0) + 1;
+    $state['failures'] = ($state['failures'] ?? 0) + 1;
     if ($state['failures'] >= self::BREAKER_THRESHOLD) {
         $state['open_until'] = time() + self::BREAKER_OPEN_SECONDS;
     }
-        $this->breakercache->set($key, $state);
+    $this->breakercache->set($key, $state);
 }
 
     /**
      * Breaker record success.
-     **/    private function breaker_record_success(string $key): void {
-        $this->breakercache->delete($key);
+     *
+     * @param string $key
+     */
+private function breaker_record_success(string $key): void {
+    $this->breakercache->delete($key);
 }
 
     // Structured logging (no secrets).
 
     /**
      * Log call.
-     **/    private function log_call(
+     *
+     * @param string $endpointkey
+     * @param int $latencyms
+     * @param int $status
+     * @param int $attempt
+     * @param array $profile
+     * @param string $circuitstate
+     * @param string $method
+     * @param string $host
+     * @param string $path
+     * @param string $requestid
+     */
+private function log_call(
     string $endpointkey,
     int $latencyms,
     int $status,
@@ -533,25 +597,25 @@ private function host_from_base(): string {
     string $path = '',
     string $requestid = '',
 ): void {
-        $profilename = $profile === self::PROFILE_HOT
-            ? 'hot'
-            : ($profile === self::PROFILE_HEALTH ? 'health' : 'standard');
+    $profilename = $profile === self::PROFILE_HOT
+        ? 'hot'
+        : ($profile === self::PROFILE_HEALTH ? 'health' : 'standard');
 
-        $pathlogged = $path === '' ? '' : strtok($path, '?');
+    $pathlogged = $path === '' ? '' : strtok($path, '?');
 
-        // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
-        error_log(json_encode([
-            'event'           => 'gateway.call',
-            'request_id'      => $requestid,
-            'method'          => $method,
-            'host'            => $host,
-            'path'            => $pathlogged,
-            'endpoint'        => $endpointkey,
-            'latency_ms'      => $latencyms,
-            'status_code'     => $status,
-            'attempt'         => $attempt,
-            'circuit_state'   => $circuitstate,
-            'timeout_profile' => $profilename,
-        ]));
+    // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
+    error_log(json_encode([
+        'event'           => 'gateway.call',
+        'request_id'      => $requestid,
+        'method'          => $method,
+        'host'            => $host,
+        'path'            => $pathlogged,
+        'endpoint'        => $endpointkey,
+        'latency_ms'      => $latencyms,
+        'status_code'     => $status,
+        'attempt'         => $attempt,
+        'circuit_state'   => $circuitstate,
+        'timeout_profile' => $profilename,
+    ]));
 }
 }

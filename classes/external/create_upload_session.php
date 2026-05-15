@@ -38,7 +38,10 @@ namespace local_fastpix\external;
 class create_upload_session extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     **/    public static function execute_parameters(): \core_external\external_function_parameters {
+     *
+     * @return \core_external\external_function_parameters
+     */
+    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'filename' => new \core_external\external_value(
                 PARAM_TEXT,
@@ -51,7 +54,7 @@ class create_upload_session extends \core_external\external_api {
                 VALUE_REQUIRED
             ),
         ]);
-}
+    }
 
     /**
      * Create a direct upload session.
@@ -60,44 +63,47 @@ class create_upload_session extends \core_external\external_api {
      * @param int    $size     File size in bytes
      * @return array{session_id:int,upload_id:string,upload_url:string,expires_at:int,deduped:bool}
      */
-public static function execute(string $filename, int $size): array {
-    global $USER;
+    public static function execute(string $filename, int $size): array {
+        global $USER;
 
-    // 1. Validate parameters first (throws invalid_parameter_exception).
-    $params = self::validate_parameters(
-        self::execute_parameters(),
-        ['filename' => $filename, 'size' => $size]
-    );
-
-    // 2. Authenticate + authorize.
-    $context = \context_system::instance();
-    require_login(null, false);
-    require_sesskey();
-    require_capability('mod/fastpix:uploadmedia', $context);
-
-    // 3. Delegate to service layer.
-    $result = \local_fastpix\service\upload_service::instance()
-        ->create_file_upload_session(
-            (int)$USER->id,
-            [
-                'filename' => $params['filename'],
-                'size'     => $params['size'],
-            ]
+        // 1. Validate parameters first (throws invalid_parameter_exception).
+        $params = self::validate_parameters(
+            self::execute_parameters(),
+            ['filename' => $filename, 'size' => $size]
         );
 
-    // 4. Return matches execute_returns() structure.
-    return [
+        // 2. Authenticate + authorize.
+        $context = \context_system::instance();
+        require_login(null, false);
+        require_sesskey();
+        require_capability('mod/fastpix:uploadmedia', $context);
+
+        // 3. Delegate to service layer.
+        $result = \local_fastpix\service\upload_service::instance()
+            ->create_file_upload_session(
+                (int)$USER->id,
+                [
+                'filename' => $params['filename'],
+                'size'     => $params['size'],
+                ]
+            );
+
+        // 4. Return matches execute_returns() structure.
+        return [
         'session_id' => (int)$result->session_id,
         'upload_id'  => (string)$result->upload_id,
         'upload_url' => (string)$result->upload_url,
         'expires_at' => (int)$result->expires_at,
         'deduped'    => (bool)$result->deduped,
-    ];
-}
+        ];
+    }
 
     /**
      * Web service return spec.
-     **/    public static function execute_returns(): \core_external\external_single_structure {
+     *
+     * @return \core_external\external_single_structure
+     */
+    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -120,5 +126,5 @@ public static function execute(string $filename, int $size): array {
                 'True if this session was returned from the 60s dedup cache'
             ),
         ]);
-}
+    }
 }

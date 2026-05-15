@@ -46,7 +46,7 @@ final class retry_gdpr_delete_test extends \advanced_testcase {
 
     /**
      * Helper: inject failing gateway.
-     **/    private function inject_failing_gateway(): void {
+     */    private function inject_failing_gateway(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('delete_media')
             ->willThrowException(new \local_fastpix\exception\gateway_unavailable('500:simulated'));
@@ -59,30 +59,34 @@ final class retry_gdpr_delete_test extends \advanced_testcase {
 
     /**
      * Helper: insert pending asset.
-     **/    private function insert_pending_asset(int $attempts = 0): \stdClass {
-        global $DB;
-        $now = time();
-        $row = (object)[
-            'fastpix_id'             => 'media-' . random_string(8),
-            'playback_id'            => null,
-            'owner_userid'           => 0,
-            'title'                  => 'Stuck row',
-            'duration'               => null,
-            'status'                 => 'ready',
-            'access_policy'          => 'private',
-            'drm_required'           => 0,
-            'no_skip_required'       => 0,
-            'has_captions'           => 0,
-            'last_event_id'          => null,
-            'last_event_at'          => null,
-            'deleted_at'             => $now,
-            'gdpr_delete_pending_at' => $now,
-            'gdpr_delete_attempts'   => $attempts,
-            'timecreated'            => $now,
-            'timemodified'           => $now,
-        ];
-        $row->id = $DB->insert_record(self::TABLE, $row);
-        return $row;
+     *
+     * @param int $attempts
+     * @return \stdClass
+     */
+private function insert_pending_asset(int $attempts = 0): \stdClass {
+    global $DB;
+    $now = time();
+    $row = (object)[
+        'fastpix_id'             => 'media-' . random_string(8),
+        'playback_id'            => null,
+        'owner_userid'           => 0,
+        'title'                  => 'Stuck row',
+        'duration'               => null,
+        'status'                 => 'ready',
+        'access_policy'          => 'private',
+        'drm_required'           => 0,
+        'no_skip_required'       => 0,
+        'has_captions'           => 0,
+        'last_event_id'          => null,
+        'last_event_at'          => null,
+        'deleted_at'             => $now,
+        'gdpr_delete_pending_at' => $now,
+        'gdpr_delete_attempts'   => $attempts,
+        'timecreated'            => $now,
+        'timemodified'           => $now,
+    ];
+    $row->id = $DB->insert_record(self::TABLE, $row);
+    return $row;
 }
 
     /**

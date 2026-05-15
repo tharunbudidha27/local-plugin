@@ -41,7 +41,12 @@ class jwt_signing_service {
 
     /**
      * Sign for playback.
-     **/    public function sign_for_playback(string $playbackid, ?int $ttl = null): string {
+     *
+     * @param string $playbackid
+     * @param ?int $ttl
+     * @return string
+     */
+    public function sign_for_playback(string $playbackid, ?int $ttl = null): string {
         $kid = (string)get_config('local_fastpix', 'signing_key_id');
         $privatekeyb64 = (string)get_config('local_fastpix', 'signing_private_key');
 
@@ -66,11 +71,14 @@ class jwt_signing_service {
         ];
 
         return JWT::encode($payload, $pem, 'RS256', $kid);
-}
+    }
 
     /**
      * Token ttl seconds.
-     **/    public function token_ttl_seconds(): int {
+     *
+     * @return int
+     */
+    public function token_ttl_seconds(): int {
         return self::TOKEN_TTL_SECONDS;
-}
+    }
 }

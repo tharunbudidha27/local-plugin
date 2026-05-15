@@ -42,7 +42,10 @@ namespace local_fastpix\external;
 class get_upload_status extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     **/    public static function execute_parameters(): \core_external\external_function_parameters {
+     *
+     * @return \core_external\external_function_parameters
+     */
+    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -50,7 +53,7 @@ class get_upload_status extends \core_external\external_api {
                 VALUE_REQUIRED
             ),
         ]);
-}
+    }
 
     /**
      * Get the status of an upload session.
@@ -59,38 +62,41 @@ class get_upload_status extends \core_external\external_api {
      * @return array{session_id:int,upload_id:string,state:string,fastpix_id:string,expires_at:int}
      * @throws \local_fastpix\exception\asset_not_found if not found OR not owned by caller
      */
-public static function execute(int $sessionid): array {
-    global $USER;
+    public static function execute(int $sessionid): array {
+        global $USER;
 
-    // 1. Validate parameters first.
-    $params = self::validate_parameters(
-        self::execute_parameters(),
-        ['session_id' => $sessionid]
-    );
+        // 1. Validate parameters first.
+        $params = self::validate_parameters(
+            self::execute_parameters(),
+            ['session_id' => $sessionid]
+        );
 
-    // 2. Authenticate + authorize.
-    // No sesskey: type=read, idempotent, CSRF-safe per Moodle convention.
-    $context = \context_system::instance();
-    require_login(null, false);
-    require_capability('mod/fastpix:uploadmedia', $context);
+        // 2. Authenticate + authorize.
+        // No sesskey: type=read, idempotent, CSRF-safe per Moodle convention.
+        $context = \context_system::instance();
+        require_login(null, false);
+        require_capability('mod/fastpix:uploadmedia', $context);
 
-    // 3. Delegate to service. Ownership check is enforced in the SQL.
-    $result = \local_fastpix\service\upload_service::instance()
-        ->get_status((int)$params['session_id'], (int)$USER->id);
+        // 3. Delegate to service. Ownership check is enforced in the SQL.
+        $result = \local_fastpix\service\upload_service::instance()
+            ->get_status((int)$params['session_id'], (int)$USER->id);
 
-    // 4. Return matches execute_returns() structure.
-    return [
+        // 4. Return matches execute_returns() structure.
+        return [
         'session_id' => (int)$result->session_id,
         'upload_id'  => (string)$result->upload_id,
         'state'      => (string)$result->state,
         'fastpix_id' => (string)$result->fastpix_id,
         'expires_at' => (int)$result->expires_at,
-    ];
-}
+        ];
+    }
 
     /**
      * Web service return spec.
-     **/    public static function execute_returns(): \core_external\external_single_structure {
+     *
+     * @return \core_external\external_single_structure
+     */
+    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -113,5 +119,5 @@ public static function execute(int $sessionid): array {
                 'Unix timestamp at which the session expires'
             ),
         ]);
-}
+    }
 }

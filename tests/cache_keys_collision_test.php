@@ -33,7 +33,7 @@ namespace local_fastpix;
 final class cache_keys_collision_test extends \advanced_testcase {
     /**
      * Number of synthetic IDs to hash.
-     **/    private const KEY_COUNT = 100000;
+     */    private const KEY_COUNT = 100000;
 
     /**
      * Replicates the production hash pattern for cache keys.

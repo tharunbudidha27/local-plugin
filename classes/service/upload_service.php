@@ -46,106 +46,125 @@ class upload_service {
 
     /**
      * Singleton accessor.
-     **/    public static function instance(): self {
+     *
+     * @return self
+     */
+    public static function instance(): self {
         return self::$instance ??= new self();
-}
+    }
 
     /**
      * Reset the singleton (used by tests).
-     **/    public static function reset(): void {
+     */    public static function reset(): void {
         self::$instance = null;
 }
 
     /**
      * Create file upload session.
-     **/    public function create_file_upload_session(
+     *
+     * @param int $userid
+     * @param array $metadata
+     * @param bool $drmrequired
+     * @param ?string $accesspolicy
+     * @param ?string $maxresolution
+     * @return \stdClass
+     */
+public function create_file_upload_session(
     int $userid,
     array $metadata,
     bool $drmrequired = false,
     ?string $accesspolicy = null,
     ?string $maxresolution = null,
 ): \stdClass {
-        $this->assert_drm_gate($drmrequired);
+    $this->assert_drm_gate($drmrequired);
 
-        // Dedup window: same (userid, filename, size) within 60s returns the.
-        // Existing session.
-        $cache = \cache::make('local_fastpix', 'upload_dedup');
-        $hashkey = $this->dedup_key($userid, $metadata);
-        $cached = $this->dedup_hit($cache, $hashkey);
+    // Dedup window: same (userid, filename, size) within 60s returns the.
+    // Existing session.
+    $cache = \cache::make('local_fastpix', 'upload_dedup');
+    $hashkey = $this->dedup_key($userid, $metadata);
+    $cached = $this->dedup_hit($cache, $hashkey);
     if ($cached !== null) {
         return $cached;
     }
 
-        $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
+    $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
-        $response = \local_fastpix\api\gateway::instance()->input_video_direct_upload(
-            $params['owner_hash'],
-            $params['fastpix_metadata'],
-            $params['access_policy'],
-            $params['drm_config_id'],
-            $params['max_resolution'],
-        );
+    $response = \local_fastpix\api\gateway::instance()->input_video_direct_upload(
+        $params['owner_hash'],
+        $params['fastpix_metadata'],
+        $params['access_policy'],
+        $params['drm_config_id'],
+        $params['max_resolution'],
+    );
 
-        $uploadid = (string)($response->data->uploadId ?? $response->uploadId ?? '');
-        $uploadurl = (string)($response->data->url ?? $response->url ?? '');
+    $uploadid = (string)($response->data->uploadId ?? $response->uploadId ?? '');
+    $uploadurl = (string)($response->data->url ?? $response->url ?? '');
 
-        $session = $this->persist_session(
-            userid:     $userid,
-            upload_id:  $uploadid,
-            upload_url: $uploadurl,
-            source_url: null,
-        );
+    $session = $this->persist_session(
+        userid:     $userid,
+        uploadid:  $uploadid,
+        uploadurl: $uploadurl,
+        sourceurl: null,
+    );
 
-        $cache->set($hashkey, $session->id);
+    $cache->set($hashkey, $session->id);
 
-        return $this->build_response($session, deduped: false);
+    return $this->build_response($session, deduped: false);
 }
 
     /**
      * Create url pull session.
-     **/    public function create_url_pull_session(
+     *
+     * @param int $userid
+     * @param string $sourceurl
+     * @param bool $drmrequired
+     * @param ?string $accesspolicy
+     * @param ?string $maxresolution
+     * @return \stdClass
+     */
+public function create_url_pull_session(
     int $userid,
     string $sourceurl,
     bool $drmrequired = false,
     ?string $accesspolicy = null,
     ?string $maxresolution = null,
 ): \stdClass {
-        // SSRF guard runs BEFORE any gateway call (rule S6).
-        $this->assert_ssrf_safe($sourceurl);
-        $this->assert_drm_gate($drmrequired);
+    // SSRF guard runs BEFORE any gateway call (rule S6).
+    $this->assert_ssrf_safe($sourceurl);
+    $this->assert_drm_gate($drmrequired);
 
-        // Dedup window: same (userid, source_url) within 60s returns the.
-        // Existing session row. Mirrors the file-upload dedup contract (W11).
-        $cache = \cache::make('local_fastpix', 'upload_dedup');
-        $hashkey = $this->dedup_key_url($userid, $sourceurl);
-        $cached = $this->dedup_hit($cache, $hashkey);
+    // Dedup window: same (userid, source_url) within 60s returns the.
+    // Existing session row. Mirrors the file-upload dedup contract (W11).
+    $cache = \cache::make('local_fastpix', 'upload_dedup');
+    $hashkey = $this->dedup_key_url($userid, $sourceurl);
+    $cached = $this->dedup_hit($cache, $hashkey);
     if ($cached !== null) {
         return $cached;
     }
 
-        $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
+    $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
-        $response = \local_fastpix\api\gateway::instance()->media_create_from_url(
-            $sourceurl,
-            $params['owner_hash'],
-            $params['fastpix_metadata'],
-            $params['access_policy'],
-            $params['drm_config_id'],
-            $params['max_resolution'],
-        );
+    $response = \local_fastpix\api\gateway::instance()->media_create_from_url(
+        $sourceurl,
+        $params['owner_hash'],
+        $params['fastpix_metadata'],
+        $params['access_policy'],
+        $params['drm_config_id'],
+        $params['max_resolution'],
+    );
 
-        $uploadid = (string)($response->data->id ?? $response->id ?? '');
+    $uploadid = (string)($response->data->id ?? $response->id ?? '');
 
-        $session = $this->persist_session(
-            userid:     $userid,
-            upload_id:  $uploadid,
-            upload_url: '',
-            source_url: $sourceurl,
-        );
+    $session = $this->persist_session(
+        userid:     $userid,
+        uploadid:  $uploadid,
+        uploadurl: '',
+        sourceurl: $sourceurl,
+    );
 
-        $cache->set($hashkey, $session->id);
+    $cache->set($hashkey, $session->id);
 
-        return $this->build_response($session, deduped: false);
+    return $this->build_response($session, deduped: false);
 }
 
     /**
@@ -290,7 +309,10 @@ private function resolve_max_resolution(?string $callervalue): string {
 
     /**
      * Assert drm gate.
-     **/    private function assert_drm_gate(bool $drmrequired): void {
+     *
+     * @param bool $drmrequired
+     */
+private function assert_drm_gate(bool $drmrequired): void {
     if ($drmrequired && !feature_flag_service::instance()->drm_enabled()) {
         throw new drm_not_configured('drm_required_but_not_configured');
     }
@@ -298,12 +320,17 @@ private function resolve_max_resolution(?string $callervalue): string {
 
     /**
      * Dedup key.
-     **/    private function dedup_key(int $userid, array $metadata): string {
-        $filename = (string)($metadata['filename'] ?? '');
-        $size     = (int)($metadata['size'] ?? 0);
-        $logical  = "upload:{$userid}:" . hash('sha256', $filename . '|' . $size);
-        // The 'upload_dedup' MUC area uses simplekeys=true; hash to alphanumeric.
-        return 'ud_' . substr(hash('sha256', $logical), 0, 32);
+     *
+     * @param int $userid
+     * @param array $metadata
+     * @return string
+     */
+private function dedup_key(int $userid, array $metadata): string {
+    $filename = (string)($metadata['filename'] ?? '');
+    $size     = (int)($metadata['size'] ?? 0);
+    $logical  = "upload:{$userid}:" . hash('sha256', $filename . '|' . $size);
+    // The 'upload_dedup' MUC area uses simplekeys=true; hash to alphanumeric.
+    return 'ud_' . substr(hash('sha256', $logical), 0, 32);
 }
 
     /**
@@ -321,8 +348,12 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * Owner hash.
-     **/    private function owner_hash(int $userid): string {
-        $salt = (string)get_config('local_fastpix', 'user_hash_salt');
+     *
+     * @param int $userid
+     * @return string
+     */
+private function owner_hash(int $userid): string {
+    $salt = (string)get_config('local_fastpix', 'user_hash_salt');
     if ($salt === '') {
         // The previous fallback was: generate a random salt + set_config.
         // Removed per REVIEW-2026-05-04 §4 — concurrent first-uses produced.
@@ -340,51 +371,67 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
             'Re-run plugin install or restore the config.'
         );
     }
-        return hash_hmac('sha256', (string)$userid, $salt);
+    return hash_hmac('sha256', (string)$userid, $salt);
 }
 
     /**
      * Lookup session.
-     **/    private function lookup_session(int $id): ?\stdClass {
-        global $DB;
-        $row = $DB->get_record(self::TABLE, ['id' => $id]);
-        return $row ?: null;
+     *
+     * @param int $id
+     * @return ?\stdClass
+     */
+private function lookup_session(int $id): ?\stdClass {
+    global $DB;
+    $row = $DB->get_record(self::TABLE, ['id' => $id]);
+    return $row ?: null;
 }
 
     /**
      * Persist session.
-     **/    private function persist_session(
+     *
+     * @param int $userid
+     * @param string $uploadid
+     * @param string $uploadurl
+     * @param ?string $sourceurl
+     * @return \stdClass
+     */
+private function persist_session(
     int $userid,
     string $uploadid,
     string $uploadurl,
     ?string $sourceurl,
 ): \stdClass {
-        global $DB;
-        $now = time();
-        $row = (object)[
-            'userid'      => $userid,
-            'upload_id'   => $uploadid,
-            'upload_url'  => $uploadurl,
-            'fastpix_id'  => null,
-            'source_url'  => $sourceurl,
-            'state'       => 'pending',
-            'timecreated' => $now,
-            'expires_at'  => $now + self::SESSION_TTL_SECONDS,
-        ];
-        $row->id = $DB->insert_record(self::TABLE, $row);
-        return $row;
+    global $DB;
+    $now = time();
+    $row = (object)[
+        'userid'      => $userid,
+        'upload_id'   => $uploadid,
+        'upload_url'  => $uploadurl,
+        'fastpix_id'  => null,
+        'source_url'  => $sourceurl,
+        'state'       => 'pending',
+        'timecreated' => $now,
+        'expires_at'  => $now + self::SESSION_TTL_SECONDS,
+    ];
+    $row->id = $DB->insert_record(self::TABLE, $row);
+    return $row;
 }
 
     /**
      * Build response.
-     **/    private function build_response(\stdClass $session, bool $deduped): \stdClass {
-        return (object)[
-            'session_id' => (int)$session->id,
-            'upload_id'  => (string)$session->upload_id,
-            'upload_url' => (string)$session->upload_url,
-            'expires_at' => (int)$session->expires_at,
-            'deduped'    => $deduped,
-        ];
+     *
+     * @param \stdClass $session
+     * @param bool $deduped
+     * @return \stdClass
+     */
+private function build_response(\stdClass $session, bool $deduped): \stdClass {
+    return (object)[
+        'session_id' => (int)$session->id,
+        'upload_id'  => (string)$session->upload_id,
+        'upload_url' => (string)$session->upload_url,
+        'expires_at' => (int)$session->expires_at,
+        'deduped'    => $deduped,
+    ];
 }
 
     /**

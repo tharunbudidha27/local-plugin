@@ -48,7 +48,7 @@ final class verifier_test extends \advanced_testcase {
 
     /**
      * Helper: configure current.
-     **/    private function configure_current(): void {
+     */    private function configure_current(): void {
         set_config('webhook_secret_current', self::CURRENT, 'local_fastpix');
         set_config('webhook_secret_previous', '', 'local_fastpix');
         set_config('webhook_secret_rotated_at', 0, 'local_fastpix');
@@ -56,8 +56,13 @@ final class verifier_test extends \advanced_testcase {
 
     /**
      * Helper: sign.
-     **/    private function sign(string $body, string $secret): string {
-        return hash_hmac('sha256', $body, $secret);
+     *
+     * @param string $body
+     * @param string $secret
+     * @return string
+     */
+private function sign(string $body, string $secret): string {
+    return hash_hmac('sha256', $body, $secret);
 }
 
     // Happy / unhappy current secret.

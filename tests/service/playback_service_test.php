@@ -36,7 +36,7 @@ final class playback_service_test extends \advanced_testcase {
 
     /**
      * Helper: bootstrap signing key.
-     **/    private function bootstrap_signing_key(): void {
+     */    private function bootstrap_signing_key(): void {
         // The fastest path: generate an RSA keypair in-process, store via.
         // Config so jwt_signing_service can mint without a gateway call.
         $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
@@ -47,30 +47,34 @@ final class playback_service_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     **/    private function insert_asset(array $overrides = []): \stdClass {
-        global $DB;
-        $now = time();
-        $row = (object)array_merge([
-            'fastpix_id'             => 'media-' . random_string(8),
-            'playback_id'            => 'pb-' . random_string(8),
-            'owner_userid'           => 0,
-            'title'                  => 'Test',
-            'duration'               => 10.0,
-            'status'                 => 'ready',
-            'access_policy'          => 'public',
-            'drm_required'           => 0,
-            'no_skip_required'       => 0,
-            'has_captions'           => 0,
-            'last_event_id'          => null,
-            'last_event_at'          => null,
-            'deleted_at'             => null,
-            'gdpr_delete_pending_at' => null,
-            'gdpr_delete_attempts'   => 0,
-            'timecreated'            => $now,
-            'timemodified'           => $now,
-        ], $overrides);
-        $row->id = $DB->insert_record(self::TABLE, $row);
-        return $row;
+     *
+     * @param array $overrides
+     * @return \stdClass
+     */
+private function insert_asset(array $overrides = []): \stdClass {
+    global $DB;
+    $now = time();
+    $row = (object)array_merge([
+        'fastpix_id'             => 'media-' . random_string(8),
+        'playback_id'            => 'pb-' . random_string(8),
+        'owner_userid'           => 0,
+        'title'                  => 'Test',
+        'duration'               => 10.0,
+        'status'                 => 'ready',
+        'access_policy'          => 'public',
+        'drm_required'           => 0,
+        'no_skip_required'       => 0,
+        'has_captions'           => 0,
+        'last_event_id'          => null,
+        'last_event_at'          => null,
+        'deleted_at'             => null,
+        'gdpr_delete_pending_at' => null,
+        'gdpr_delete_attempts'   => 0,
+        'timecreated'            => $now,
+        'timemodified'           => $now,
+    ], $overrides);
+    $row->id = $DB->insert_record(self::TABLE, $row);
+    return $row;
 }
 
     /**

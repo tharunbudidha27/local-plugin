@@ -37,7 +37,7 @@ namespace local_fastpix\dto;
 class playback_payload {
     /**
      * Constructor.
-     **/    public function __construct(
+     */    public function __construct(
     /** @var string Playbackid. */
     public readonly string $playbackid,
     /** @var string Playbacktoken. */
@@ -79,12 +79,12 @@ public static function from_asset_and_jwt(
     bool $defaultshowcaptions = false,
 ): self {
     return new self(
-        playback_id:           (string)$asset->playback_id,
-        playback_token:        $jwt,
-        expires_at_ts:         time() + $ttlseconds,
-        drm_required:          (bool)($asset->drm_required ?? false),
-        accent_color:          $accentcolor,
-        default_show_captions: $defaultshowcaptions,
+        playbackid:           (string)$asset->playback_id,
+        playbacktoken:        $jwt,
+        expiresatts:         time() + $ttlseconds,
+        drmrequired:          (bool)($asset->drm_required ?? false),
+        accentcolor:          $accentcolor,
+        defaultshowcaptions: $defaultshowcaptions,
     );
 }
 }

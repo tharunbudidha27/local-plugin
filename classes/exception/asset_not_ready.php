@@ -35,7 +35,10 @@ namespace local_fastpix\exception;
 class asset_not_ready extends \moodle_exception {
     /**
      * Constructor.
-     **/    public function __construct(string $context = '') {
+     *
+     * @param string $context
+     */
+    public function __construct(string $context = '') {
         parent::__construct('asset_not_ready', 'local_fastpix', '', $context);
-}
+    }
 }

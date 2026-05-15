@@ -49,17 +49,25 @@ namespace local_fastpix\util;
 class cache_keys {
     /**
      * Number of hex chars retained from the SHA-256 digest.
-     **/    private const TRUNCATE_TO = 32;
+     */    private const TRUNCATE_TO = 32;
 
     /**
      * Fastpix.
-     **/    public static function fastpix(string $fastpixid): string {
+     *
+     * @param string $fastpixid
+     * @return string
+     */
+    public static function fastpix(string $fastpixid): string {
         return 'fp_' . substr(hash('sha256', $fastpixid), 0, self::TRUNCATE_TO);
-}
+    }
 
     /**
      * Playback.
-     **/    public static function playback(string $playbackid): string {
+     *
+     * @param string $playbackid
+     * @return string
+     */
+    public static function playback(string $playbackid): string {
         return 'pb_' . substr(hash('sha256', $playbackid), 0, self::TRUNCATE_TO);
-}
+    }
 }

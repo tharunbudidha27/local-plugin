@@ -40,7 +40,7 @@ namespace local_fastpix\health;
 class runner {
     /**
      * Rate-limit cap per IP per minute.
-     **/    public const RATE_LIMIT_PER_MIN = 30;
+     */    public const RATE_LIMIT_PER_MIN = 30;
 
     /**
      * Run the health check for one request.

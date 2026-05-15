@@ -38,7 +38,12 @@ class asset_service {
 
     /**
      * Get by fastpix id.
-     **/    public static function get_by_fastpix_id(string $fastpixid, bool $includedeleted = false): ?\stdClass {
+     *
+     * @param string $fastpixid
+     * @param bool $includedeleted
+     * @return ?\stdClass
+     */
+    public static function get_by_fastpix_id(string $fastpixid, bool $includedeleted = false): ?\stdClass {
         $cache = self::cache();
         $key = self::cache_key_fastpix($fastpixid);
 
@@ -61,46 +66,56 @@ class asset_service {
             return null;
         }
         return $row;
-}
+    }
 
     /**
      * Get by playback id.
-     **/    public static function get_by_playback_id(string $playbackid, bool $includedeleted = false): ?\stdClass {
+     *
+     * @param string $playbackid
+     * @param bool $includedeleted
+     * @return ?\stdClass
+     */
+    public static function get_by_playback_id(string $playbackid, bool $includedeleted = false): ?\stdClass {
         $cache = self::cache();
         $key = self::cache_key_playback($playbackid);
 
         $row = $cache->get($key);
-    if ($row === false) {
-        global $DB;
-        $row = $DB->get_record(self::TABLE, ['playback_id' => $playbackid]);
-        if ($row) {
-            $cache->set($key, $row);
-            $cache->set(self::cache_key_fastpix($row->fastpix_id), $row);
+        if ($row === false) {
+            global $DB;
+            $row = $DB->get_record(self::TABLE, ['playback_id' => $playbackid]);
+            if ($row) {
+                $cache->set($key, $row);
+                $cache->set(self::cache_key_fastpix($row->fastpix_id), $row);
+            }
         }
-    }
 
-    if (!$row) {
-        return null;
-    }
-    if (!$includedeleted && !empty($row->deleted_at)) {
-        return null;
-    }
+        if (!$row) {
+            return null;
+        }
+        if (!$includedeleted && !empty($row->deleted_at)) {
+            return null;
+        }
         return $row;
-}
+    }
 
     /**
      * Get by id.
-     **/    public static function get_by_id(int $id, bool $includedeleted = false): ?\stdClass {
+     *
+     * @param int $id
+     * @param bool $includedeleted
+     * @return ?\stdClass
+     */
+    public static function get_by_id(int $id, bool $includedeleted = false): ?\stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, ['id' => $id]);
-    if (!$row) {
-        return null;
-    }
-    if (!$includedeleted && !empty($row->deleted_at)) {
-        return null;
-    }
+        if (!$row) {
+            return null;
+        }
+        if (!$includedeleted && !empty($row->deleted_at)) {
+            return null;
+        }
         return $row;
-}
+    }
 
     /**
      * Lookup an asset by upload_session id. ADR-013 §2 entry point.
@@ -111,18 +126,18 @@ class asset_service {
      * @param int $sessionid
      * @return ?\stdClass
      */
-public static function get_by_upload_session_id(int $sessionid): ?\stdClass {
-    global $DB;
-    $session = $DB->get_record(
-        'local_fastpix_upload_session',
-        ['id' => $sessionid],
-        'id, fastpix_id'
-    );
-    if (!$session || empty($session->fastpix_id)) {
-        return null;
+    public static function get_by_upload_session_id(int $sessionid): ?\stdClass {
+        global $DB;
+        $session = $DB->get_record(
+            'local_fastpix_upload_session',
+            ['id' => $sessionid],
+            'id, fastpix_id'
+        );
+        if (!$session || empty($session->fastpix_id)) {
+            return null;
+        }
+        return self::get_by_fastpix_id((string)$session->fastpix_id);
     }
-    return self::get_by_fastpix_id((string)$session->fastpix_id);
-}
 
     /**
      * Read-path lazy fetch. May call the gateway exactly once on cold start.
@@ -131,37 +146,37 @@ public static function get_by_upload_session_id(int $sessionid): ?\stdClass {
      * @param string $fastpixid
      * @return \stdClass
      */
-public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass {
-    $asset = self::get_by_fastpix_id($fastpixid);
-    if ($asset !== null) {
-        return $asset;
-    }
+    public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass {
+        $asset = self::get_by_fastpix_id($fastpixid);
+        if ($asset !== null) {
+            return $asset;
+        }
 
-    try {
-        $remote = \local_fastpix\api\gateway::instance()->get_media($fastpixid);
-    } catch (\local_fastpix\exception\gateway_not_found $e) {
-        throw new \local_fastpix\exception\asset_not_found($fastpixid);
-    }
+        try {
+            $remote = \local_fastpix\api\gateway::instance()->get_media($fastpixid);
+        } catch (\local_fastpix\exception\gateway_not_found $e) {
+            throw new \local_fastpix\exception\asset_not_found($fastpixid);
+        }
 
-    global $DB;
+        global $DB;
 
-    $data = $remote->data ?? $remote;
+        $data = $remote->data ?? $remote;
 
-    $playbackid = null;
-    $accesspolicy = (string)($data->accessPolicy ?? 'private');
-    if (!empty($data->playbackIds) && is_array($data->playbackIds)) {
-        foreach ($data->playbackIds as $pb) {
-            $policy = (string)($pb->accessPolicy ?? '');
-            if (in_array($policy, ['private', 'drm'], true)) {
-                $playbackid = (string)$pb->id;
-                $accesspolicy = $policy;
-                break;
+        $playbackid = null;
+        $accesspolicy = (string)($data->accessPolicy ?? 'private');
+        if (!empty($data->playbackIds) && is_array($data->playbackIds)) {
+            foreach ($data->playbackIds as $pb) {
+                $policy = (string)($pb->accessPolicy ?? '');
+                if (in_array($policy, ['private', 'drm'], true)) {
+                    $playbackid = (string)$pb->id;
+                    $accesspolicy = $policy;
+                    break;
+                }
             }
         }
-    }
 
-    $now = time();
-    $row = (object)[
+        $now = time();
+        $row = (object)[
         'fastpix_id'       => (string)$data->id,
         'playback_id'      => $playbackid,
         'owner_userid'     => 0,
@@ -178,37 +193,43 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
         'gdpr_delete_pending_at' => null,
         'timecreated'      => $now,
         'timemodified'     => $now,
-    ];
+        ];
 
-    try {
-        $row->id = $DB->insert_record(self::TABLE, $row);
-    } catch (\dml_write_exception $e) {
-        // UNIQUE race — another worker inserted first. Re-read the winner.
-        $existing = self::get_by_fastpix_id($fastpixid);
-        if ($existing !== null) {
-            return $existing;
+        try {
+            $row->id = $DB->insert_record(self::TABLE, $row);
+        } catch (\dml_write_exception $e) {
+            // UNIQUE race — another worker inserted first. Re-read the winner.
+            $existing = self::get_by_fastpix_id($fastpixid);
+            if ($existing !== null) {
+                return $existing;
+            }
+            throw $e;
         }
-        throw $e;
-    }
 
-    $cache = self::cache();
-    $cache->set(self::cache_key_fastpix($row->fastpix_id), $row);
-    if (!empty($row->playback_id)) {
-        $cache->set(self::cache_key_playback($row->playback_id), $row);
-    }
+        $cache = self::cache();
+        $cache->set(self::cache_key_fastpix($row->fastpix_id), $row);
+        if (!empty($row->playback_id)) {
+            $cache->set(self::cache_key_playback($row->playback_id), $row);
+        }
 
-    return $row;
-}
+        return $row;
+    }
 
     /**
      * List for owner.
-     **/    public static function list_for_owner(int $userid, ?string $status = 'ready', int $limit = 50): array {
+     *
+     * @param int $userid
+     * @param ?string $status
+     * @param int $limit
+     * @return array
+     */
+    public static function list_for_owner(int $userid, ?string $status = 'ready', int $limit = 50): array {
         global $DB;
 
         $conditions = ['owner_userid' => $userid];
-    if ($status !== null) {
-        $conditions['status'] = $status;
-    }
+        if ($status !== null) {
+            $conditions['status'] = $status;
+        }
 
         $rows = $DB->get_records(
             self::TABLE,
@@ -220,30 +241,38 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
         );
 
         return array_values(array_filter($rows, static fn($r) => empty($r->deleted_at)));
-}
+    }
 
     /**
      * List for owner paginated.
-     **/    public static function list_for_owner_paginated(
-    int $userid,
-    ?string $status,
-    int $offset,
-    int $limit,
-    string $search = '',
-): array {
+     *
+     * @param int $userid
+     * @param ?string $status
+     * @param int $offset
+     * @param int $limit
+     * @param string $search
+     * @return array
+     */
+    public static function list_for_owner_paginated(
+        int $userid,
+        ?string $status,
+        int $offset,
+        int $limit,
+        string $search = '',
+    ): array {
         global $DB;
 
         $where  = 'owner_userid = :userid AND deleted_at IS NULL';
         $params = ['userid' => $userid];
 
-    if ($status !== null) {
-        $where .= ' AND status = :status';
-        $params['status'] = $status;
-    }
-    if ($search !== '') {
-        $where .= ' AND ' . $DB->sql_like('title', ':search', false);
-        $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
-    }
+        if ($status !== null) {
+            $where .= ' AND status = :status';
+            $params['status'] = $status;
+        }
+        if ($search !== '') {
+            $where .= ' AND ' . $DB->sql_like('title', ':search', false);
+            $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
+        }
 
         $rows = $DB->get_records_select(
             self::TABLE,
@@ -256,19 +285,22 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
         );
 
         return array_values($rows);
-}
+    }
 
     // Public write API.
 
     /**
      * Soft delete.
-     **/    public static function soft_delete(int $id): void {
+     *
+     * @param int $id
+     */
+    public static function soft_delete(int $id): void {
         global $DB;
 
         $row = $DB->get_record(self::TABLE, ['id' => $id], 'id, fastpix_id, playback_id');
-    if (!$row) {
-        return;
-    }
+        if (!$row) {
+            return;
+        }
 
         $now = time();
         $DB->update_record(self::TABLE, (object)[
@@ -278,15 +310,18 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
         ]);
 
         self::invalidate_cache((string)$row->fastpix_id, $row->playback_id ?? null);
-}
+    }
 
     // Helpers.
 
     /**
      * Cache.
-     **/    private static function cache(): \cache_application {
+     *
+     * @return \cache_application
+     */
+    private static function cache(): \cache_application {
         return \cache::make('local_fastpix', 'asset');
-}
+    }
 
     /**
      * MUC area 'asset' is declared simplekeys=true, so cache keys must be
@@ -296,37 +331,49 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
      * @param string $fastpixid
      * @return string
      */
-private static function cache_key_fastpix(string $fastpixid): string {
-    return \local_fastpix\util\cache_keys::fastpix($fastpixid);
-}
+    private static function cache_key_fastpix(string $fastpixid): string {
+        return \local_fastpix\util\cache_keys::fastpix($fastpixid);
+    }
 
     /**
      * Cache helper for key playback.
-     **/    private static function cache_key_playback(string $playbackid): string {
+     *
+     * @param string $playbackid
+     * @return string
+     */
+    private static function cache_key_playback(string $playbackid): string {
         return \local_fastpix\util\cache_keys::playback($playbackid);
-}
+    }
 
     /**
      * Invalidate cache.
-     **/    private static function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+     *
+     * @param string $fastpixid
+     * @param ?string $playbackid
+     */
+    private static function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = self::cache();
         $cache->delete(self::cache_key_fastpix($fastpixid));
-    if (!empty($playbackid)) {
-        $cache->delete(self::cache_key_playback($playbackid));
+        if (!empty($playbackid)) {
+            $cache->delete(self::cache_key_playback($playbackid));
+        }
     }
-}
 
     /**
      * Whether caption track.
-     **/    private static function has_caption_track(object $data): bool {
-    if (empty($data->tracks) || !is_array($data->tracks)) {
-        return false;
-    }
-    foreach ($data->tracks as $track) {
-        if (($track->type ?? '') === 'subtitle' || ($track->type ?? '') === 'caption') {
-            return true;
+     *
+     * @param object $data
+     * @return bool
+     */
+    private static function has_caption_track(object $data): bool {
+        if (empty($data->tracks) || !is_array($data->tracks)) {
+            return false;
         }
-    }
+        foreach ($data->tracks as $track) {
+            if (($track->type ?? '') === 'subtitle' || ($track->type ?? '') === 'caption') {
+                return true;
+            }
+        }
         return false;
-}
+    }
 }

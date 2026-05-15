@@ -58,11 +58,14 @@ namespace local_fastpix\admin;
 class setting_webhook_secret extends \admin_setting_configtext {
     /**
      * Minimum acceptable length, mirroring verifier::MIN_SECRET_BYTES.
-     **/    private const MIN_LEN = 32;
+     */    private const MIN_LEN = 32;
 
     /**
      * Write setting.
-     **/    public function write_setting($data) {
+     *
+     * @param mixed $data
+     */
+    public function write_setting($data) {
         $newvalue = is_string($data) ? trim($data) : '';
 
         if ($newvalue !== '' && strlen($newvalue) < self::MIN_LEN) {
@@ -92,5 +95,5 @@ class setting_webhook_secret extends \admin_setting_configtext {
         }
 
         return '';
-}
+    }
 }

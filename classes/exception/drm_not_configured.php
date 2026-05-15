@@ -33,7 +33,10 @@ namespace local_fastpix\exception;
 class drm_not_configured extends \moodle_exception {
     /**
      * Constructor.
-     **/    public function __construct(string $context = '') {
+     *
+     * @param string $context
+     */
+    public function __construct(string $context = '') {
         parent::__construct('drm_not_configured', 'local_fastpix', '', $context);
-}
+    }
 }

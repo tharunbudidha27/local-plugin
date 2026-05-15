@@ -45,7 +45,12 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     **/    private function insert_asset(?int $deletedat, ?string $playbackid = null): \stdClass {
+     *
+     * @param ?int $deletedat
+     * @param ?string $playbackid
+     * @return \stdClass
+     */
+    private function insert_asset(?int $deletedat, ?string $playbackid = null): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[
@@ -69,11 +74,15 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
         ];
         $row->id = $DB->insert_record(self::ASSET_TABLE, $row);
         return $row;
-}
+    }
 
     /**
      * Helper: insert track.
-     **/    private function insert_track(int $assetid): int {
+     *
+     * @param int $assetid
+     * @return int
+     */
+    private function insert_track(int $assetid): int {
         global $DB;
         return (int)$DB->insert_record(self::TRACK_TABLE, (object)[
             'asset_id'     => $assetid,
@@ -82,11 +91,11 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
             'status'       => 'ready',
             'timemodified' => time(),
         ]);
-}
+    }
 
     /**
      * Helper: run task.
-     **/    private function run_task(): void {
+     */    private function run_task(): void {
         ob_start();
         (new purge_soft_deleted_assets())->execute();
         ob_end_clean();

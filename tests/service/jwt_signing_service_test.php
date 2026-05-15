@@ -57,7 +57,11 @@ final class jwt_signing_service_test extends \advanced_testcase {
 
     /**
      * Helper: decode segments.
-     **/    private function decode_segments(string $jwt): array {
+     *
+     * @param string $jwt
+     * @return array
+     */
+    private function decode_segments(string $jwt): array {
         $parts = explode('.', $jwt);
         $this->assertCount(3, $parts, 'JWT must have three segments');
         $b64urldecode = static fn(string $s): string =>
@@ -65,7 +69,7 @@ final class jwt_signing_service_test extends \advanced_testcase {
         $header = json_decode($b64urldecode($parts[0]), true);
         $payload = json_decode($b64urldecode($parts[1]), true);
         return [$header, $payload, $parts];
-}
+    }
 
     // Config-missing branches.
 
@@ -74,51 +78,51 @@ final class jwt_signing_service_test extends \advanced_testcase {
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_with_missing_kid_throws_signing_key_missing(): void {
-    set_config('signing_key_id', '', 'local_fastpix');
-    set_config('signing_private_key', 'abc', 'local_fastpix');
+    public function test_sign_for_playback_with_missing_kid_throws_signing_key_missing(): void {
+        set_config('signing_key_id', '', 'local_fastpix');
+        set_config('signing_private_key', 'abc', 'local_fastpix');
 
-    try {
-        (new jwt_signing_service())->sign_for_playback('pb-1');
-        $this->fail('expected signing_key_missing');
-    } catch (\local_fastpix\exception\signing_key_missing $e) {
-        $this->assertStringContainsString('config_empty', $e->getMessage() . ' ' . (string)$e->a);
+        try {
+            (new jwt_signing_service())->sign_for_playback('pb-1');
+            $this->fail('expected signing_key_missing');
+        } catch (\local_fastpix\exception\signing_key_missing $e) {
+            $this->assertStringContainsString('config_empty', $e->getMessage() . ' ' . (string)$e->a);
+        }
     }
-}
 
     /**
      * Test that sign for playback with missing pem throws signing key missing.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_with_missing_pem_throws_signing_key_missing(): void {
-    set_config('signing_key_id', 'kid-1', 'local_fastpix');
-    set_config('signing_private_key', '', 'local_fastpix');
+    public function test_sign_for_playback_with_missing_pem_throws_signing_key_missing(): void {
+        set_config('signing_key_id', 'kid-1', 'local_fastpix');
+        set_config('signing_private_key', '', 'local_fastpix');
 
-    try {
-        (new jwt_signing_service())->sign_for_playback('pb-1');
-        $this->fail('expected signing_key_missing');
-    } catch (\local_fastpix\exception\signing_key_missing $e) {
-        $this->assertStringContainsString('config_empty', $e->getMessage() . ' ' . (string)$e->a);
+        try {
+            (new jwt_signing_service())->sign_for_playback('pb-1');
+            $this->fail('expected signing_key_missing');
+        } catch (\local_fastpix\exception\signing_key_missing $e) {
+            $this->assertStringContainsString('config_empty', $e->getMessage() . ' ' . (string)$e->a);
+        }
     }
-}
 
     /**
      * Test that sign for playback with invalid base64 throws signing key missing.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_with_invalid_base64_throws_signing_key_missing(): void {
-    set_config('signing_key_id', 'kid-1', 'local_fastpix');
-    set_config('signing_private_key', '@@@invalid', 'local_fastpix');
+    public function test_sign_for_playback_with_invalid_base64_throws_signing_key_missing(): void {
+        set_config('signing_key_id', 'kid-1', 'local_fastpix');
+        set_config('signing_private_key', '@@@invalid', 'local_fastpix');
 
-    try {
-        (new jwt_signing_service())->sign_for_playback('pb-1');
-        $this->fail('expected signing_key_missing');
-    } catch (\local_fastpix\exception\signing_key_missing $e) {
-        $this->assertStringContainsString('invalid_base64', $e->getMessage() . ' ' . (string)$e->a);
+        try {
+            (new jwt_signing_service())->sign_for_playback('pb-1');
+            $this->fail('expected signing_key_missing');
+        } catch (\local_fastpix\exception\signing_key_missing $e) {
+            $this->assertStringContainsString('invalid_base64', $e->getMessage() . ' ' . (string)$e->a);
+        }
     }
-}
 
     // Roundtrip / shape.
 
@@ -127,87 +131,87 @@ public function test_sign_for_playback_with_invalid_base64_throws_signing_key_mi
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_returns_valid_three_segment_jwt(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
-    $this->assertCount(3, explode('.', $jwt));
-}
+    public function test_sign_for_playback_returns_valid_three_segment_jwt(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
+        $this->assertCount(3, explode('.', $jwt));
+    }
 
     /**
      * Test that sign for playback payload has correct aud format.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_payload_has_correct_aud_format(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-xyz');
-    [, $payload] = $this->decode_segments($jwt);
-    $this->assertSame('media:pb-xyz', $payload['aud']);
-}
+    public function test_sign_for_playback_payload_has_correct_aud_format(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-xyz');
+        [, $payload] = $this->decode_segments($jwt);
+        $this->assertSame('media:pb-xyz', $payload['aud']);
+    }
 
     /**
      * Test that sign for playback uses rs256 in header.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_uses_rs256_in_header(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
-    [$header] = $this->decode_segments($jwt);
-    $this->assertSame('RS256', $header['alg']);
-}
+    public function test_sign_for_playback_uses_rs256_in_header(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
+        [$header] = $this->decode_segments($jwt);
+        $this->assertSame('RS256', $header['alg']);
+    }
 
     /**
      * Test that sign for playback kid in header matches kid in payload.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_kid_in_header_matches_kid_in_payload(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
-    [$header, $payload] = $this->decode_segments($jwt);
-    $this->assertSame($header['kid'], $payload['kid']);
-    $this->assertSame(self::KID, $header['kid']);
-}
+    public function test_sign_for_playback_kid_in_header_matches_kid_in_payload(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
+        [$header, $payload] = $this->decode_segments($jwt);
+        $this->assertSame($header['kid'], $payload['kid']);
+        $this->assertSame(self::KID, $header['kid']);
+    }
 
     /**
      * Test that sign for playback default ttl is 300.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_default_ttl_is_300(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
-    [, $payload] = $this->decode_segments($jwt);
-    $this->assertSame(300, (int)$payload['exp'] - (int)$payload['iat']);
-}
+    public function test_sign_for_playback_default_ttl_is_300(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-1');
+        [, $payload] = $this->decode_segments($jwt);
+        $this->assertSame(300, (int)$payload['exp'] - (int)$payload['iat']);
+    }
 
     /**
      * Test that sign for playback custom ttl is honored.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_custom_ttl_is_honored(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-1', 60);
-    [, $payload] = $this->decode_segments($jwt);
-    $this->assertSame(60, (int)$payload['exp'] - (int)$payload['iat']);
-}
+    public function test_sign_for_playback_custom_ttl_is_honored(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-1', 60);
+        [, $payload] = $this->decode_segments($jwt);
+        $this->assertSame(60, (int)$payload['exp'] - (int)$payload['iat']);
+    }
 
     /**
      * Test that sign for playback signature verifies with public key.
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_sign_for_playback_signature_verifies_with_public_key(): void {
-    $jwt = (new jwt_signing_service())->sign_for_playback('pb-verify');
+    public function test_sign_for_playback_signature_verifies_with_public_key(): void {
+        $jwt = (new jwt_signing_service())->sign_for_playback('pb-verify');
 
-    // Canonical roundtrip via firebase/php-jwt with the public key.
-    $decoded = JWT::decode($jwt, new Key($this->publicpem, 'RS256'));
-    $this->assertSame('media:pb-verify', $decoded->aud);
+        // Canonical roundtrip via firebase/php-jwt with the public key.
+        $decoded = JWT::decode($jwt, new Key($this->publicpem, 'RS256'));
+        $this->assertSame('media:pb-verify', $decoded->aud);
 
-    // Belt-and-braces openssl_verify on the raw segments.
-    $parts = explode('.', $jwt);
-    $signinginput = $parts[0] . '.' . $parts[1];
-    $signature = base64_decode(strtr($parts[2], '-_', '+/')
+        // Belt-and-braces openssl_verify on the raw segments.
+        $parts = explode('.', $jwt);
+        $signinginput = $parts[0] . '.' . $parts[1];
+        $signature = base64_decode(strtr($parts[2], '-_', '+/')
         . str_repeat('=', (4 - strlen($parts[2]) % 4) % 4));
-    $verified = openssl_verify($signinginput, $signature, $this->publicpem, OPENSSL_ALGO_SHA256);
-    $this->assertSame(1, $verified);
-}
+        $verified = openssl_verify($signinginput, $signature, $this->publicpem, OPENSSL_ALGO_SHA256);
+        $this->assertSame(1, $verified);
+    }
 
     // Constants.
 
@@ -216,9 +220,9 @@ public function test_sign_for_playback_signature_verifies_with_public_key(): voi
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_token_ttl_seconds_returns_300(): void {
-    $this->assertSame(300, (new jwt_signing_service())->token_ttl_seconds());
-}
+    public function test_token_ttl_seconds_returns_300(): void {
+        $this->assertSame(300, (new jwt_signing_service())->token_ttl_seconds());
+    }
 
     // Redaction canary.
 
@@ -227,22 +231,22 @@ public function test_token_ttl_seconds_returns_300(): void {
      *
      * @covers \local_fastpix\service\jwt_signing_service
      */
-public function test_redaction_canary_no_pem_or_jwt_in_logs(): void {
-    $logbuffer = '';
-    $originalerrorlog = ini_get('error_log');
-    $tmp = tempnam(sys_get_temp_dir(), 'jwtlog_');
-    ini_set('error_log', $tmp);
+    public function test_redaction_canary_no_pem_or_jwt_in_logs(): void {
+        $logbuffer = '';
+        $originalerrorlog = ini_get('error_log');
+        $tmp = tempnam(sys_get_temp_dir(), 'jwtlog_');
+        ini_set('error_log', $tmp);
 
-    try {
-        (new jwt_signing_service())->sign_for_playback('pb-canary');
-        $logbuffer = (string)file_get_contents($tmp);
-    } finally {
-        ini_set('error_log', $originalerrorlog);
-        @unlink($tmp);
+        try {
+            (new jwt_signing_service())->sign_for_playback('pb-canary');
+            $logbuffer = (string)file_get_contents($tmp);
+        } finally {
+            ini_set('error_log', $originalerrorlog);
+            @unlink($tmp);
+        }
+
+        $this->assertDoesNotMatchRegularExpression('/eyJ[A-Za-z0-9_-]{10,}/', $logbuffer);
+        $this->assertStringNotContainsString('-----BEGIN', $logbuffer);
+        $this->assertStringNotContainsString($this->privatepem, $logbuffer);
     }
-
-    $this->assertDoesNotMatchRegularExpression('/eyJ[A-Za-z0-9_-]{10,}/', $logbuffer);
-    $this->assertStringNotContainsString('-----BEGIN', $logbuffer);
-    $this->assertStringNotContainsString($this->privatepem, $logbuffer);
-}
 }

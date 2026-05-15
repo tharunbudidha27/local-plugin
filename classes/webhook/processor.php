@@ -62,7 +62,12 @@ class processor {
 
     /**
      * Process.
-     **/    public static function process(string $rawbody, string $signatureheader): array {
+     *
+     * @param string $rawbody
+     * @param string $signatureheader
+     * @return array
+     */
+    public static function process(string $rawbody, string $signatureheader): array {
         global $DB;
 
         // 1. Signature verification (rule S3 — hash_equals via verifier).
@@ -152,5 +157,5 @@ class processor {
                 'error'     => $e->getMessage(),
             ];
         }
-}
+    }
 }
