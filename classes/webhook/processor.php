@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\webhook;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Verify-record-enqueue pipeline extracted from webhook.php.
@@ -52,7 +49,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class processor {
-
     /** @var string Result accepted. */
     public const RESULT_ACCEPTED       = 'accepted';
     /** @var string Result duplicate. */
@@ -67,8 +63,9 @@ class processor {
     /** @var string Ledger table. */
     private const LEDGER_TABLE = 'local_fastpix_webhook_event';
 
-    /** Process. */
-    public static function process(string $rawbody, string $signatureheader): array {
+    /**
+     * Process.
+     */    public static function process(string $rawbody, string $signatureheader): array {
         global $DB;
 
         // 1. Signature verification (rule S3 — hash_equals via verifier).
@@ -103,8 +100,8 @@ class processor {
             ];
         }
 
-        // 3. Idempotent ledger insert. UNIQUE on provider_event_id catches
-        // duplicates as dml_write_exception — duplicate is success (W1).
+        // 3. Idempotent ledger insert. UNIQUE on provider_event_id catches.
+        // Duplicates as dml_write_exception — duplicate is success (W1).
         $eventcreatedat = isset($event->occurredAt) ? (int)$event->occurredAt : time();
 
         try {
@@ -150,7 +147,6 @@ class processor {
                 'event_id'  => $eventid,
                 'error'     => null,
             ];
-
         } catch (\Throwable $e) {
             return [
                 'result'    => self::RESULT_DB_ERROR,
@@ -159,5 +155,5 @@ class processor {
                 'error'     => $e->getMessage(),
             ];
         }
-    }
+}
 }

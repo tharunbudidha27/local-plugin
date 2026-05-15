@@ -1,4 +1,19 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 /**
  * Webhook end-to-end loopback test (T3.2).
  *
@@ -18,6 +33,10 @@
  *   php local/fastpix/cli/webhook_loopback_test.php --webhook-url=https://your.example/local/fastpix/webhook.php
  *
  * Exits 0 on success, non-zero with a diagnostic on any failure.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 define('CLI_SCRIPT', true);
@@ -60,12 +79,12 @@ global $DB, $CFG;
 $count = max(1, (int)$options['count']);
 $dup = max(0.0, min(1.0, (float)$options['dup']));
 $timeout = max(1, (int)$options['timeout']);
-$webhook_url = $options['webhook-url']
+$webhookurl = $options['webhook-url']
     ?? rtrim($CFG->wwwroot, '/') . '/local/fastpix/webhook.php';
 
-// Read the configured signing secret. Bail early if it's missing or
-// below the verifier's MIN_SECRET_BYTES floor — the loopback would
-// just generate 401s.
+// Read the configured signing secret. Bail early if it's missing or.
+// Below the verifier's MIN_SECRET_BYTES floor — the loopback would.
+// Just generate 401s.
 $secret = (string)get_config('local_fastpix', 'webhook_secret_current');
 if ($secret === '') {
     cli_problem('webhook_secret_current is empty. Run db/install.php or set it via CLI.');
@@ -79,7 +98,7 @@ if (strlen($secret) < 32) {
     exit(2);
 }
 
-cli_writeln("webhook_loopback_test: target={$webhook_url}");
+cli_writeln("webhook_loopback_test: target={$webhookurl}");
 cli_writeln("                       count={$count} dup={$dup} timeout={$timeout}s");
 
 $results = [
@@ -90,39 +109,39 @@ $results = [
     'duplicates'   => 0,
 ];
 
-// --- Generate event IDs -----------------------------------------------------
+// Generate event IDs.
 
-// Build a list of event IDs honoring the dup fraction. Duplicates re-use a
-// previously-emitted ID so the receiver's UNIQUE constraint kicks in.
-$event_ids = [];
-$unique_pool = [];
+// Build a list of event IDs honoring the dup fraction. Duplicates re-use a.
+// Previously-emitted ID so the receiver's UNIQUE constraint kicks in.
+$eventids = [];
+$uniquepool = [];
 for ($i = 0; $i < $count; $i++) {
-    if (!empty($unique_pool) && mt_rand(0, 999) / 1000.0 < $dup) {
-        $event_ids[] = $unique_pool[array_rand($unique_pool)];
+    if (!empty($uniquepool) && mt_rand(0, 999) / 1000.0 < $dup) {
+        $eventids[] = $uniquepool[array_rand($uniquepool)];
         $results['duplicates']++;
     } else {
         $id = 'loopback-' . bin2hex(random_bytes(8));
-        $event_ids[] = $id;
-        $unique_pool[] = $id;
+        $eventids[] = $id;
+        $uniquepool[] = $id;
     }
 }
 
-// --- Fire events ------------------------------------------------------------
+// Fire events.
 
-$fastpix_id = 'loopback-asset-' . bin2hex(random_bytes(6));
+$fastpixid = 'loopback-asset-' . bin2hex(random_bytes(6));
 
-foreach ($event_ids as $event_id) {
+foreach ($eventids as $eventid) {
     $payload = json_encode([
-        'id'         => $event_id,
+        'id'         => $eventid,
         'type'       => 'video.media.failed',
         'occurredAt' => time(),
-        'object'     => ['type' => 'video.media', 'id' => $fastpix_id],
+        'object'     => ['type' => 'video.media', 'id' => $fastpixid],
         'data'       => (object)[],
     ], JSON_UNESCAPED_SLASHES);
 
     $signature = hash_hmac('sha256', $payload, $secret);
 
-    $ch = curl_init($webhook_url);
+    $ch = curl_init($webhookurl);
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
@@ -134,38 +153,38 @@ foreach ($event_ids as $event_id) {
             'Content-Length: ' . strlen($payload),
         ],
     ]);
-    $response_body = curl_exec($ch);
-    $http_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_err = curl_error($ch);
+    $responsebody = curl_exec($ch);
+    $httpcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlerr = curl_error($ch);
     curl_close($ch);
 
     $results['sent']++;
-    if ($http_code === 200) {
+    if ($httpcode === 200) {
         $results['http_200']++;
     } else {
         $results['http_other'][] = [
-            'event_id' => $event_id,
-            'code'     => $http_code,
-            'body'     => substr((string)$response_body, 0, 200),
-            'curl_err' => $curl_err,
+            'event_id' => $eventid,
+            'code'     => $httpcode,
+            'body'     => substr((string)$responsebody, 0, 200),
+            'curl_err' => $curlerr,
         ];
     }
 }
 
-$results['unique_ids'] = count(array_unique($event_ids));
+$results['unique_ids'] = count(array_unique($eventids));
 
-// --- Ledger reconciliation --------------------------------------------------
+// Ledger reconciliation.
 
 // Wait briefly for any in-flight inserts to commit.
 usleep(200_000);
 
-$ledger_count = $DB->count_records_sql(
+$ledgercount = $DB->count_records_sql(
     "SELECT COUNT(*) FROM {local_fastpix_webhook_event}
       WHERE provider_event_id LIKE :pat",
     ['pat' => 'loopback-%'],
 );
 
-// --- Report -----------------------------------------------------------------
+// Report.
 
 cli_writeln('');
 cli_writeln('Results:');
@@ -173,7 +192,7 @@ cli_writeln(sprintf('  sent:              %d', $results['sent']));
 cli_writeln(sprintf('  HTTP 200:          %d', $results['http_200']));
 cli_writeln(sprintf('  unique event IDs:  %d', $results['unique_ids']));
 cli_writeln(sprintf('  duplicates fired:  %d', $results['duplicates']));
-cli_writeln(sprintf('  ledger rows seen:  %d (expect = unique IDs)', $ledger_count));
+cli_writeln(sprintf('  ledger rows seen:  %d (expect = unique IDs)', $ledgercount));
 
 if (!empty($results['http_other'])) {
     cli_writeln('');
@@ -181,7 +200,8 @@ if (!empty($results['http_other'])) {
     foreach (array_slice($results['http_other'], 0, 5) as $row) {
         cli_writeln(sprintf(
             '  event=%s code=%d curl_err=%s body=%s',
-            $row['event_id'], $row['code'],
+            $row['event_id'],
+            $row['code'],
             $row['curl_err'] ?: '-',
             $row['body'] ?: '-',
         ));
@@ -189,7 +209,7 @@ if (!empty($results['http_other'])) {
 }
 
 $ok = $results['http_200'] === $results['sent']
-    && $ledger_count >= $results['unique_ids'];
+    && $ledgercount >= $results['unique_ids'];
 
 cli_writeln('');
 cli_writeln($ok ? 'PASS' : 'FAIL');

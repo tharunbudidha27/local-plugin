@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\task;
-
-defined('MOODLE_INTERNAL') || die();
 
 use local_fastpix\util\cache_keys;
 
@@ -47,24 +44,25 @@ use local_fastpix\util\cache_keys;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class purge_soft_deleted_assets extends \core\task\scheduled_task {
-
     /** @var string Asset table. */
     private const ASSET_TABLE = 'local_fastpix_asset';
     /** @var string Track table. */
     private const TRACK_TABLE = 'local_fastpix_track';
 
     /** @var int Retention seconds. */
-    private const RETENTION_SECONDS = 604800; // 7 days (rule W10)
+    private const RETENTION_SECONDS = 604800; // 7 Days (rule W10).
     /** @var int Batch size. */
     private const BATCH_SIZE = 500;
 
-    /** Get name. */
-    public function get_name(): string {
+    /**
+     * Get name.
+     */    public function get_name(): string {
         return get_string('task_purge_soft_deleted_assets', 'local_fastpix');
-    }
+}
 
-    /** Web service main entry point. */
-    public function execute(): void {
+    /**
+     * Web service main entry point.
+     */    public function execute(): void {
         global $DB;
 
         $startms = (int)(microtime(true) * 1000);
@@ -83,20 +81,20 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
         $purged = 0;
         $cache = \cache::make('local_fastpix', 'asset');
 
-        foreach ($rows as $row) {
-            try {
-                $DB->delete_records(self::TRACK_TABLE, ['asset_id' => (int)$row->id]);
-                $DB->delete_records(self::ASSET_TABLE, ['id' => (int)$row->id]);
+    foreach ($rows as $row) {
+        try {
+            $DB->delete_records(self::TRACK_TABLE, ['asset_id' => (int)$row->id]);
+            $DB->delete_records(self::ASSET_TABLE, ['id' => (int)$row->id]);
 
-                $cache->delete(cache_keys::fastpix((string)$row->fastpix_id));
-                if (!empty($row->playback_id)) {
-                    $cache->delete(cache_keys::playback((string)$row->playback_id));
-                }
-                $purged++;
-            } catch (\Throwable $e) {
-                mtrace("purge_soft_deleted_assets: failed to purge id={$row->id}: " . $e->getMessage());
+            $cache->delete(cache_keys::fastpix((string)$row->fastpix_id));
+            if (!empty($row->playback_id)) {
+                $cache->delete(cache_keys::playback((string)$row->playback_id));
             }
+            $purged++;
+        } catch (\Throwable $e) {
+            mtrace("purge_soft_deleted_assets: failed to purge id={$row->id}: " . $e->getMessage());
         }
+    }
 
         $remaining = $DB->count_records_select(
             self::ASSET_TABLE,
@@ -112,5 +110,5 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
             'elapsed_ms'      => $elapsedms,
             'batch_size'      => self::BATCH_SIZE,
         ]));
-    }
+}
 }

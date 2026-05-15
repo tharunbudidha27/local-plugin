@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\task;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Adhoc task: project a single verified webhook event onto its asset row.
@@ -40,12 +37,12 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class process_webhook extends \core\task\adhoc_task {
-
     /** @var string Ledger table. */
     private const LEDGER_TABLE = 'local_fastpix_webhook_event';
 
-    /** Web service main entry point. */
-    public function execute(): void {
+    /**
+     * Web service main entry point.
+     */    public function execute(): void {
         global $DB;
 
         $data = $this->get_custom_data();
@@ -72,8 +69,8 @@ class process_webhook extends \core\task\adhoc_task {
         $eventtype = (string)($event->type ?? '');
         $projector  = new \local_fastpix\webhook\projector();
 
-        // lock_acquisition_failed and any other exception bubble up so the
-        // adhoc-task system retries with backoff.
+        // Lock_acquisition_failed and any other exception bubble up so the.
+        // Adhoc-task system retries with backoff.
         $projector->project($event);
 
         $DB->update_record(self::LEDGER_TABLE, (object)[
@@ -83,5 +80,5 @@ class process_webhook extends \core\task\adhoc_task {
         ]);
 
         mtrace("process_webhook: processed event_id={$eventid} type={$eventtype}");
-    }
+}
 }

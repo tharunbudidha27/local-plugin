@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -27,8 +26,6 @@ namespace local_fastpix\service;
 use local_fastpix\exception\drm_not_configured;
 use local_fastpix\exception\ssrf_blocked;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Service: upload.
  *
@@ -37,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class upload_service {
-
     /** @var string Table. */
     private const TABLE = 'local_fastpix_upload_session';
     /** @var int Session ttl seconds. */
@@ -48,34 +44,37 @@ class upload_service {
     /** @var ?self $instance */
     private static ?self $instance = null;
 
-    /** Singleton accessor. */
-    public static function instance(): self {
+    /**
+     * Singleton accessor.
+     */    public static function instance(): self {
         return self::$instance ??= new self();
-    }
+}
 
-    /** Reset the singleton (used by tests). */
-    public static function reset(): void {
+    /**
+     * Reset the singleton (used by tests).
+     */    public static function reset(): void {
         self::$instance = null;
-    }
+}
 
-    /** Create file upload session. */
-    public function create_file_upload_session(
-        int $userid,
-        array $metadata,
-        bool $drmrequired = false,
-        ?string $accesspolicy = null,
-        ?string $maxresolution = null,
-    ): \stdClass {
+    /**
+     * Create file upload session.
+     */    public function create_file_upload_session(
+    int $userid,
+    array $metadata,
+    bool $drmrequired = false,
+    ?string $accesspolicy = null,
+    ?string $maxresolution = null,
+): \stdClass {
         $this->assert_drm_gate($drmrequired);
 
-        // Dedup window: same (userid, filename, size) within 60s returns the
-        // existing session.
+        // Dedup window: same (userid, filename, size) within 60s returns the.
+        // Existing session.
         $cache = \cache::make('local_fastpix', 'upload_dedup');
         $hashkey = $this->dedup_key($userid, $metadata);
         $cached = $this->dedup_hit($cache, $hashkey);
-        if ($cached !== null) {
-            return $cached;
-        }
+    if ($cached !== null) {
+        return $cached;
+    }
 
         $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
@@ -100,28 +99,29 @@ class upload_service {
         $cache->set($hashkey, $session->id);
 
         return $this->build_response($session, deduped: false);
-    }
+}
 
-    /** Create url pull session. */
-    public function create_url_pull_session(
-        int $userid,
-        string $sourceurl,
-        bool $drmrequired = false,
-        ?string $accesspolicy = null,
-        ?string $maxresolution = null,
-    ): \stdClass {
+    /**
+     * Create url pull session.
+     */    public function create_url_pull_session(
+    int $userid,
+    string $sourceurl,
+    bool $drmrequired = false,
+    ?string $accesspolicy = null,
+    ?string $maxresolution = null,
+): \stdClass {
         // SSRF guard runs BEFORE any gateway call (rule S6).
         $this->assert_ssrf_safe($sourceurl);
         $this->assert_drm_gate($drmrequired);
 
-        // Dedup window: same (userid, source_url) within 60s returns the
-        // existing session row. Mirrors the file-upload dedup contract (W11).
+        // Dedup window: same (userid, source_url) within 60s returns the.
+        // Existing session row. Mirrors the file-upload dedup contract (W11).
         $cache = \cache::make('local_fastpix', 'upload_dedup');
         $hashkey = $this->dedup_key_url($userid, $sourceurl);
         $cached = $this->dedup_hit($cache, $hashkey);
-        if ($cached !== null) {
-            return $cached;
-        }
+    if ($cached !== null) {
+        return $cached;
+    }
 
         $params = $this->resolve_upload_params($userid, $drmrequired, $accesspolicy, $maxresolution);
 
@@ -146,7 +146,7 @@ class upload_service {
         $cache->set($hashkey, $session->id);
 
         return $this->build_response($session, deduped: false);
-    }
+}
 
     /**
      * Common dedup-cache short-circuit shared by both session-creation paths.
@@ -154,16 +154,16 @@ class upload_service {
      * supplied hash key; null otherwise. Caller still owns the cache->set on
      * the new session id after a fresh insert.
      */
-    private function dedup_hit(\cache $cache, string $hashkey): ?\stdClass {
-        $existingid = $cache->get($hashkey);
-        if (is_int($existingid) || (is_string($existingid) && ctype_digit($existingid))) {
-            $existing = $this->lookup_session((int)$existingid);
-            if ($existing !== null && $existing->expires_at > time()) {
-                return $this->build_response($existing, deduped: true);
-            }
+private function dedup_hit(\cache $cache, string $hashkey): ?\stdClass {
+    $existingid = $cache->get($hashkey);
+    if (is_int($existingid) || (is_string($existingid) && ctype_digit($existingid))) {
+        $existing = $this->lookup_session((int)$existingid);
+        if ($existing !== null && $existing->expires_at > time()) {
+            return $this->build_response($existing, deduped: true);
         }
-        return null;
     }
+    return null;
+}
 
     /**
      * Resolve the parameters used by both file-upload and URL-pull session
@@ -173,31 +173,31 @@ class upload_service {
      *
      * @return array{owner_hash:string,access_policy:string,max_resolution:string,drm_config_id:?string,fastpix_metadata:array<string,string>}
      */
-    private function resolve_upload_params(
-        int $userid,
-        bool $drmrequired,
-        ?string $accesspolicy,
-        ?string $maxresolution,
-    ): array {
-        $ownerhash     = $this->owner_hash($userid);
-        $accesspolicy  = $this->resolve_access_policy($drmrequired, $accesspolicy);
-        $maxresolution = $this->resolve_max_resolution($maxresolution);
-        $drmconfigid  = $accesspolicy === 'drm'
-            ? feature_flag_service::instance()->drm_configuration_id()
-            : null;
-        return [
-            'owner_hash'       => $ownerhash,
-            'access_policy'    => $accesspolicy,
-            'max_resolution'   => $maxresolution,
-            'drm_config_id'    => $drmconfigid,
-            'fastpix_metadata' => [
-                'moodle_owner_userhash' => $ownerhash,
-                'moodle_site_url'       => (new \moodle_url('/'))->out(false),
-            ],
-        ];
-    }
+private function resolve_upload_params(
+    int $userid,
+    bool $drmrequired,
+    ?string $accesspolicy,
+    ?string $maxresolution,
+): array {
+    $ownerhash     = $this->owner_hash($userid);
+    $accesspolicy  = $this->resolve_access_policy($drmrequired, $accesspolicy);
+    $maxresolution = $this->resolve_max_resolution($maxresolution);
+    $drmconfigid  = $accesspolicy === 'drm'
+        ? feature_flag_service::instance()->drm_configuration_id()
+        : null;
+    return [
+        'owner_hash'       => $ownerhash,
+        'access_policy'    => $accesspolicy,
+        'max_resolution'   => $maxresolution,
+        'drm_config_id'    => $drmconfigid,
+        'fastpix_metadata' => [
+            'moodle_owner_userhash' => $ownerhash,
+            'moodle_site_url'       => (new \moodle_url('/'))->out(false),
+        ],
+    ];
+}
 
-    // ---- Helpers ---------------------------------------------------------
+    // Helpers.
 
     /**
      * Read-only lookup of an upload session, scoped to the calling user.
@@ -211,25 +211,25 @@ class upload_service {
      * @return \stdClass
      * @throws \local_fastpix\exception\asset_not_found
      */
-    public function get_status(int $sessionid, int $userid): \stdClass {
-        global $DB;
-        $row = $DB->get_record(self::TABLE, [
-            'id'     => $sessionid,
-            'userid' => $userid,
-        ]);
-        if (!$row) {
-            throw new \local_fastpix\exception\asset_not_found(
-                "upload_session id={$sessionid} for userid={$userid}"
-            );
-        }
-        return (object)[
-            'session_id' => (int)$row->id,
-            'upload_id'  => (string)$row->upload_id,
-            'state'      => (string)$row->state,
-            'fastpix_id' => $row->fastpix_id !== null ? (string)$row->fastpix_id : '',
-            'expires_at' => (int)$row->expires_at,
-        ];
+public function get_status(int $sessionid, int $userid): \stdClass {
+    global $DB;
+    $row = $DB->get_record(self::TABLE, [
+        'id'     => $sessionid,
+        'userid' => $userid,
+    ]);
+    if (!$row) {
+        throw new \local_fastpix\exception\asset_not_found(
+            "upload_session id={$sessionid} for userid={$userid}"
+        );
     }
+    return (object)[
+        'session_id' => (int)$row->id,
+        'upload_id'  => (string)$row->upload_id,
+        'state'      => (string)$row->state,
+        'fastpix_id' => $row->fastpix_id !== null ? (string)$row->fastpix_id : '',
+        'expires_at' => (int)$row->expires_at,
+    ];
+}
 
     /**
      * Resolve effective access_policy for an upload.
@@ -242,20 +242,20 @@ class upload_service {
      * Whitelist enforced: anything other than public/private/drm coming
      * from config or caller falls back to 'private'.
      */
-    private function resolve_access_policy(bool $drmrequired, ?string $callervalue): string {
-        if ($drmrequired) {
-            return 'drm';
-        }
-        $allowed = ['public', 'private', 'drm'];
-        if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
-            return $callervalue;
-        }
-        $configured = (string)get_config('local_fastpix', 'default_access_policy');
-        if (in_array($configured, $allowed, true)) {
-            return $configured;
-        }
-        return 'private';
+private function resolve_access_policy(bool $drmrequired, ?string $callervalue): string {
+    if ($drmrequired) {
+        return 'drm';
     }
+    $allowed = ['public', 'private', 'drm'];
+    if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
+        return $callervalue;
+    }
+    $configured = (string)get_config('local_fastpix', 'default_access_policy');
+    if (in_array($configured, $allowed, true)) {
+        return $configured;
+    }
+    return 'private';
+}
 
     /**
      * Resolve effective max_resolution for an upload.
@@ -264,80 +264,85 @@ class upload_service {
      *   2. admin config default  → max_resolution (set in settings)
      *   3. hard-coded fallback   → '1080p'
      */
-    private function resolve_max_resolution(?string $callervalue): string {
-        $allowed = ['480p', '720p', '1080p', '1440p', '2160p'];
-        if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
-            return $callervalue;
-        }
-        $configured = (string)get_config('local_fastpix', 'max_resolution');
-        if (in_array($configured, $allowed, true)) {
-            return $configured;
-        }
-        return '1080p';
+private function resolve_max_resolution(?string $callervalue): string {
+    $allowed = ['480p', '720p', '1080p', '1440p', '2160p'];
+    if ($callervalue !== null && $callervalue !== '' && in_array($callervalue, $allowed, true)) {
+        return $callervalue;
     }
-
-    /** Assert drm gate. */
-    private function assert_drm_gate(bool $drmrequired): void {
-        if ($drmrequired && !feature_flag_service::instance()->drm_enabled()) {
-            throw new drm_not_configured('drm_required_but_not_configured');
-        }
+    $configured = (string)get_config('local_fastpix', 'max_resolution');
+    if (in_array($configured, $allowed, true)) {
+        return $configured;
     }
+    return '1080p';
+}
 
-    /** Dedup key. */
-    private function dedup_key(int $userid, array $metadata): string {
+    /**
+     * Assert drm gate.
+     */    private function assert_drm_gate(bool $drmrequired): void {
+    if ($drmrequired && !feature_flag_service::instance()->drm_enabled()) {
+        throw new drm_not_configured('drm_required_but_not_configured');
+    }
+}
+
+    /**
+     * Dedup key.
+     */    private function dedup_key(int $userid, array $metadata): string {
         $filename = (string)($metadata['filename'] ?? '');
         $size     = (int)($metadata['size'] ?? 0);
         $logical  = "upload:{$userid}:" . hash('sha256', $filename . '|' . $size);
-        // 'upload_dedup' MUC area uses simplekeys=true; hash to alphanumeric.
+        // The 'upload_dedup' MUC area uses simplekeys=true; hash to alphanumeric.
         return 'ud_' . substr(hash('sha256', $logical), 0, 32);
-    }
+}
 
     /**
      * Dedup key for URL-pull sessions. Same (userid, source_url) within the
      * 60-second window returns the existing session_id with deduped=true.
      */
-    private function dedup_key_url(int $userid, string $sourceurl): string {
-        $logical = "urlpull:{$userid}:" . hash('sha256', $sourceurl);
-        return 'up_' . substr(hash('sha256', $logical), 0, 32);
-    }
+private function dedup_key_url(int $userid, string $sourceurl): string {
+    $logical = "urlpull:{$userid}:" . hash('sha256', $sourceurl);
+    return 'up_' . substr(hash('sha256', $logical), 0, 32);
+}
 
-    /** Owner hash. */
-    private function owner_hash(int $userid): string {
+    /**
+     * Owner hash.
+     */    private function owner_hash(int $userid): string {
         $salt = (string)get_config('local_fastpix', 'user_hash_salt');
-        if ($salt === '') {
-            // The previous fallback was: generate a random salt + set_config.
-            // Removed per REVIEW-2026-05-04 §4 — concurrent first-uses produced
-            // different salts, second worker's set_config overwrote first's,
-            // and the first worker's emitted hash silently became orphaned.
-            //
-            // db/install.php bootstraps user_hash_salt at install time
-            // (random_string(32)), so an empty salt at runtime indicates:
-            //   - the install hook didn't run (broken install), or
-            //   - someone deliberately nulled the config (operator error).
-            // Both warrant failing loud so the operator notices.
-            throw new \coding_exception(
-                'local_fastpix: user_hash_salt config is empty; ' .
-                'expected to be bootstrapped by db/install.php. ' .
-                'Re-run plugin install or restore the config.'
-            );
-        }
-        return hash_hmac('sha256', (string)$userid, $salt);
+    if ($salt === '') {
+        // The previous fallback was: generate a random salt + set_config.
+        // Removed per REVIEW-2026-05-04 §4 — concurrent first-uses produced.
+        // Different salts, second worker's set_config overwrote first's,.
+        // And the first worker's emitted hash silently became orphaned.
+        //
+        // Db/install.php bootstraps user_hash_salt at install time.
+        // (random_string(32)), so an empty salt at runtime indicates:
+        // - The install hook didn't run (broken install), or.
+        // - someone deliberately nulled the config (operator error).
+        // Both warrant failing loud so the operator notices.
+        throw new \coding_exception(
+            'local_fastpix: user_hash_salt config is empty; ' .
+            'expected to be bootstrapped by db/install.php. ' .
+            'Re-run plugin install or restore the config.'
+        );
     }
+        return hash_hmac('sha256', (string)$userid, $salt);
+}
 
-    /** Lookup session. */
-    private function lookup_session(int $id): ?\stdClass {
+    /**
+     * Lookup session.
+     */    private function lookup_session(int $id): ?\stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, ['id' => $id]);
         return $row ?: null;
-    }
+}
 
-    /** Persist session. */
-    private function persist_session(
-        int $userid,
-        string $uploadid,
-        string $uploadurl,
-        ?string $sourceurl,
-    ): \stdClass {
+    /**
+     * Persist session.
+     */    private function persist_session(
+    int $userid,
+    string $uploadid,
+    string $uploadurl,
+    ?string $sourceurl,
+): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[
@@ -352,10 +357,11 @@ class upload_service {
         ];
         $row->id = $DB->insert_record(self::TABLE, $row);
         return $row;
-    }
+}
 
-    /** Build response. */
-    private function build_response(\stdClass $session, bool $deduped): \stdClass {
+    /**
+     * Build response.
+     */    private function build_response(\stdClass $session, bool $deduped): \stdClass {
         return (object)[
             'session_id' => (int)$session->id,
             'upload_id'  => (string)$session->upload_id,
@@ -363,7 +369,7 @@ class upload_service {
             'expires_at' => (int)$session->expires_at,
             'deduped'    => $deduped,
         ];
-    }
+}
 
     /**
      * SSRF guard for user-supplied source URLs.
@@ -383,59 +389,63 @@ class upload_service {
      * Empirical audit 2026-05-06 (REVIEW DoD §31): zero direct-fetch sites
      * for source_url in the plugin source.
      */
-    private function assert_ssrf_safe(string $url): void {
-        $parts = parse_url($url);
-        if (($parts['scheme'] ?? '') !== 'https') {
-            throw new ssrf_blocked('non_https');
-        }
-        // Reject embedded credentials (https://user:pass@host/...) — common
-        // exfiltration vector via Referer headers and access logs, and
-        // Moodle has no use case for credential-in-URL fetches against
-        // FastPix.
-        if (!empty($parts['user']) || !empty($parts['pass'])) {
-            throw new ssrf_blocked('credentials_in_url');
-        }
-        $host = strtolower($parts['host'] ?? '');
-        // Strip IPv6 literal brackets if parse_url left them in (varies by
-        // PHP version / build): https://[fe80::1]/x -> host='[fe80::1]'.
-        if (strlen($host) >= 2 && $host[0] === '[' && substr($host, -1) === ']') {
-            $host = substr($host, 1, -1);
-        }
-        if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
-            throw new ssrf_blocked('local_host:' . $host);
-        }
-
-        // Direct IPv6 host literal? Validate without DNS.
-        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            $this->assert_ip_public($host);
-            return;
-        }
-        // Direct IPv4 host literal? Validate without DNS.
-        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $this->assert_ip_public($host);
-            return;
-        }
-
-        // Hostname: resolve A + AAAA records. dns_get_record returns false on
-        // failure; treat empty/false the same as gethostbynamel did. The
-        // residual TOCTOU on FastPix's later fetch is documented at the top
-        // of this method and is not a Moodle-side concern.
-        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
-        if ($records === false || empty($records)) {
-            throw new ssrf_blocked('unresolvable:' . $host);
-        }
-        $ips = [];
-        foreach ($records as $r) {
-            if (isset($r['ip']))    { $ips[] = $r['ip']; }    // A
-            if (isset($r['ipv6']))  { $ips[] = $r['ipv6']; }  // AAAA
-        }
-        if (empty($ips)) {
-            throw new ssrf_blocked('unresolvable:' . $host);
-        }
-        foreach ($ips as $ip) {
-            $this->assert_ip_public($ip);
-        }
+private function assert_ssrf_safe(string $url): void {
+    $parts = parse_url($url);
+    if (($parts['scheme'] ?? '') !== 'https') {
+        throw new ssrf_blocked('non_https');
     }
+    // Reject embedded credentials (https://user:pass@host/...) — common.
+    // Exfiltration vector via Referer headers and access logs, and.
+    // Moodle has no use case for credential-in-URL fetches against.
+    // FastPix.
+    if (!empty($parts['user']) || !empty($parts['pass'])) {
+        throw new ssrf_blocked('credentials_in_url');
+    }
+    $host = strtolower($parts['host'] ?? '');
+    // Strip IPv6 literal brackets if parse_url left them in (varies by.
+    // PHP version / build): https://[fe80::1]/x -> host='[fe80::1]'.
+    if (strlen($host) >= 2 && $host[0] === '[' && substr($host, -1) === ']') {
+        $host = substr($host, 1, -1);
+    }
+    if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
+        throw new ssrf_blocked('local_host:' . $host);
+    }
+
+    // Direct IPv6 host literal? Validate without DNS.
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $this->assert_ip_public($host);
+        return;
+    }
+    // Direct IPv4 host literal? Validate without DNS.
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $this->assert_ip_public($host);
+        return;
+    }
+
+    // Hostname: resolve A + AAAA records. dns_get_record returns false on.
+    // Failure; treat empty/false the same as gethostbynamel did. The.
+    // Residual TOCTOU on FastPix's later fetch is documented at the top.
+    // Of this method and is not a Moodle-side concern.
+    $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+    if ($records === false || empty($records)) {
+        throw new ssrf_blocked('unresolvable:' . $host);
+    }
+    $ips = [];
+    foreach ($records as $r) {
+        if (isset($r['ip'])) {
+            $ips[] = $r['ip'];
+        }    // A.
+        if (isset($r['ipv6'])) {
+            $ips[] = $r['ipv6'];
+        }  // AAAA.
+    }
+    if (empty($ips)) {
+        throw new ssrf_blocked('unresolvable:' . $host);
+    }
+    foreach ($ips as $ip) {
+        $this->assert_ip_public($ip);
+    }
+}
 
     /**
      * Assert that an IP literal (v4 or v6) is publicly routable. Throws
@@ -445,67 +455,72 @@ class upload_service {
      * private IPv6 ranges, because PHP's FILTER_FLAG_NO_PRIV_RANGE /
      * NO_RES_RANGE flags do not reliably cover all IPv6 private ranges.
      */
-    private function assert_ip_public(string $ip): void {
-        // IPv4 path — preserves backward-compatible error tag 'blocked_ip:'
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            if (!filter_var($ip, FILTER_VALIDATE_IP,
-                FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                throw new ssrf_blocked('blocked_ip:' . $ip);
+private function assert_ip_public(string $ip): void {
+    // IPv4 path — preserves backward-compatible error tag 'blocked_ip:'.
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        if (
+            !filter_var(
+                $ip,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            )
+        ) {
+            throw new ssrf_blocked('blocked_ip:' . $ip);
+        }
+        // 169.254.0.0/16 Is link-local; FILTER_FLAG_NO_RES_RANGE catches it,.
+        // But be explicit about the AWS metadata IP for log clarity.
+        if ($ip === '169.254.169.254') {
+            throw new ssrf_blocked('blocked_ip:' . $ip);
+        }
+        return;
+    }
+
+    // IPv6 path.
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $packed = inet_pton($ip);
+        if ($packed === false || strlen($packed) !== 16) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        // Loopback ::1.
+        if ($packed === inet_pton('::1')) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        // Unspecified address (::).
+        if ($packed === inet_pton('::')) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        // ULA fc00::/7 — first byte top-7-bits = 1111110_.
+        if ((ord($packed[0]) & 0xfe) === 0xfc) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        // Link-local fe80::/10 — first 10 bits = 1111111010.
+        if (ord($packed[0]) === 0xfe && (ord($packed[1]) & 0xc0) === 0x80) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        // IPv4-mapped ::ffff:0:0/96 — first 80 bits = 0, next 16 = ffff.
+        $mappedprefix = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff";
+        if (substr($packed, 0, 12) === $mappedprefix) {
+            $unpacked = unpack('N', substr($packed, 12, 4));
+            if ($unpacked === false) {
+                throw new ssrf_blocked('blocked_ipv6:' . $ip);
             }
-            // 169.254.0.0/16 is link-local; FILTER_FLAG_NO_RES_RANGE catches it,
-            // but be explicit about the AWS metadata IP for log clarity.
-            if ($ip === '169.254.169.254') {
-                throw new ssrf_blocked('blocked_ip:' . $ip);
-            }
+            $v4 = long2ip($unpacked[1]);
+            $this->assert_ip_public($v4); // Recursively re-validate as IPv4.
             return;
         }
-
-        // IPv6 path
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            $packed = inet_pton($ip);
-            if ($packed === false || strlen($packed) !== 16) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // Loopback ::1
-            if ($packed === inet_pton('::1')) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // Unspecified ::
-            if ($packed === inet_pton('::')) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // ULA fc00::/7 — first byte top-7-bits = 1111110_
-            if ((ord($packed[0]) & 0xfe) === 0xfc) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // Link-local fe80::/10 — first 10 bits = 1111111010
-            if (ord($packed[0]) === 0xfe && (ord($packed[1]) & 0xc0) === 0x80) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // IPv4-mapped ::ffff:0:0/96 — first 80 bits = 0, next 16 = ffff
-            $mappedprefix = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff";
-            if (substr($packed, 0, 12) === $mappedprefix) {
-                $unpacked = unpack('N', substr($packed, 12, 4));
-                if ($unpacked === false) {
-                    throw new ssrf_blocked('blocked_ipv6:' . $ip);
-                }
-                $v4 = long2ip($unpacked[1]);
-                $this->assert_ip_public($v4); // recursively re-validate as IPv4
-                return;
-            }
-            // NAT64 64:ff9b::/96 — common synthesis prefix; trust nothing here
-            $nat64prefix = "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00";
-            if (substr($packed, 0, 12) === $nat64prefix) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            // AWS metadata over IPv6 (as documented for IMDSv2 dual-stack)
-            if ($packed === inet_pton('fd00:ec2::254')) {
-                throw new ssrf_blocked('blocked_ipv6:' . $ip);
-            }
-            return; // Public IPv6
+        // NAT64 64:ff9b::/96 — common synthesis prefix; trust nothing here.
+        $nat64prefix = "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00";
+        if (substr($packed, 0, 12) === $nat64prefix) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
         }
-
-        // Neither IPv4 nor IPv6 — reject defensively.
-        throw new ssrf_blocked('blocked_ip:' . $ip);
+        // AWS metadata over IPv6 (as documented for IMDSv2 dual-stack).
+        if ($packed === inet_pton('fd00:ec2::254')) {
+            throw new ssrf_blocked('blocked_ipv6:' . $ip);
+        }
+        return; // Public IPv6.
     }
+
+    // Neither IPv4 nor IPv6 — reject defensively.
+    throw new ssrf_blocked('blocked_ip:' . $ip);
+}
 }

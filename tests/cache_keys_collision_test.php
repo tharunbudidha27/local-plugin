@@ -8,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -28,10 +28,15 @@ namespace local_fastpix;
  *
  * Per @testing agent: deterministic (uses fixed-seed RNG), no real FastPix,
  * runs in <1s.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cache_keys_collision_test extends \advanced_testcase {
-    /** Number of synthetic IDs to hash. */
-    private const KEY_COUNT = 100000;
+    /**
+     * Number of synthetic IDs to hash.
+     */    private const KEY_COUNT = 100000;
 
     /**
      * Replicates the production hash pattern for cache keys.
@@ -60,6 +65,8 @@ final class cache_keys_collision_test extends \advanced_testcase {
     }
 
     /**
+     * Test that no collisions at 100k synthetic uuids.
+     *
      * @covers \local_fastpix
      */
     public function test_no_collisions_at_100k_synthetic_uuids(): void {
@@ -88,7 +95,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
     public function test_no_collisions_at_100k_with_pb_prefix(): void {
         $keys = [];
         for ($i = 0; $i < self::KEY_COUNT; $i++) {
-            $uuid = $this->synthetic_uuid($i + 1000000); // Offset to avoid same input
+            $uuid = $this->synthetic_uuid($i + 1000000); // Offset to avoid same input.
             $key = $this->cache_key('pb_', $uuid);
             $this->assertArrayNotHasKey($key, $keys);
             $keys[$key] = $uuid;
@@ -101,7 +108,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
      */
     public function test_key_length_is_32_plus_prefix(): void {
         $key = $this->cache_key('fp_', 'any-input-string');
-        $this->assertSame(35, strlen($key)); // 'fp_' (3) + 32 hex chars
+        $this->assertSame(35, strlen($key)); // Key format is 'fp_' (3) + 32 hex chars.
         $this->assertMatchesRegularExpression('/^fp_[0-9a-f]{32}$/', $key);
     }
 

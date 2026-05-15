@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\health;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Health-endpoint logic, extracted for testability.
@@ -43,9 +40,9 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class runner {
-
-    /** Rate-limit cap per IP per minute. */
-    public const RATE_LIMIT_PER_MIN = 30;
+    /**
+     * Rate-limit cap per IP per minute.
+     */    public const RATE_LIMIT_PER_MIN = 30;
 
     /**
      * Run the health check for one request.
@@ -70,19 +67,20 @@ class runner {
                 $reachable,
                 $latencyms,
             );
-
         } catch (\Throwable $e) {
-            // Defensive — health_probe is documented as never-throws, but
-            // if anything upstream (rate limiter, MUC, gateway construction)
-            // does, swallow it and report degraded. The exception class
-            // name is logged via debugging() for ops visibility; the
-            // message body is not (could contain sensitive context).
+            // Defensive — health_probe is documented as never-throws, but.
+            // If anything upstream (rate limiter, MUC, gateway construction).
+            // Does, swallow it and report degraded. The exception class.
+            // Name is logged via debugging() for ops visibility; the.
+            // Message body is not (could contain sensitive context).
             debugging('local_fastpix health endpoint: ' . get_class($e), DEBUG_DEVELOPER);
             return self::response(503, 'error', false, 0);
         }
     }
 
     /**
+     * Response.
+     *
      * @return array{http_code: int, body: array<string, mixed>}
      */
     private static function response(int $httpcode, string $status, ?bool $reachable, int $latencyms): array {

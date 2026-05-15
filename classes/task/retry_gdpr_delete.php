@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\task;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Scheduled task: retry FastPix-side deletion for soft-deleted assets where
@@ -45,7 +42,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class retry_gdpr_delete extends \core\task\scheduled_task {
-
     /** @var int Max rows processed per task run. */
     private const BATCH_SIZE = 50;
 
@@ -59,13 +55,15 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
      */
     private const MAX_ATTEMPTS = 10;
 
-    /** Get name. */
-    public function get_name(): string {
+    /**
+     * Get name.
+     */    public function get_name(): string {
         return get_string('task_retry_gdpr_delete', 'local_fastpix');
-    }
+}
 
-    /** Web service main entry point. */
-    public function execute(): void {
+    /**
+     * Web service main entry point.
+     */    public function execute(): void {
         global $DB;
 
         $sql = "SELECT id, fastpix_id, gdpr_delete_pending_at, gdpr_delete_attempts
@@ -82,10 +80,10 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
             self::BATCH_SIZE,
         );
 
-        if (empty($rows)) {
-            mtrace('retry_gdpr_delete: no pending GDPR deletes.');
-            return;
-        }
+    if (empty($rows)) {
+        mtrace('retry_gdpr_delete: no pending GDPR deletes.');
+        return;
+    }
 
         $start = microtime(true);
         $success = 0;
@@ -95,75 +93,75 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
 
         $gateway = \local_fastpix\api\gateway::instance();
 
-        foreach ($rows as $asset) {
-            // Time-box: stop processing if we've exceeded the budget.
-            if ((microtime(true) - $start) > self::TIME_BUDGET_SECONDS) {
-                $skipped = count($rows) - ($success + $failed);
-                mtrace('retry_gdpr_delete: time budget hit, deferring remaining rows to next run.');
-                break;
-            }
+    foreach ($rows as $asset) {
+        // Time-box: stop processing if we've exceeded the budget.
+        if ((microtime(true) - $start) > self::TIME_BUDGET_SECONDS) {
+            $skipped = count($rows) - ($success + $failed);
+            mtrace('retry_gdpr_delete: time budget hit, deferring remaining rows to next run.');
+            break;
+        }
 
-            // Increment attempts BEFORE the gateway call so that network
-            // exceptions (and even task crashes mid-call) count toward the
-            // cap. Otherwise a failure mode that consistently kills the
-            // PHP process would loop forever.
-            $nextattempt = ((int)$asset->gdpr_delete_attempts) + 1;
+        // Increment attempts BEFORE the gateway call so that network.
+        // Exceptions (and even task crashes mid-call) count toward the.
+        // Cap. Otherwise a failure mode that consistently kills the.
+        // PHP process would loop forever.
+        $nextattempt = ((int)$asset->gdpr_delete_attempts) + 1;
+        $DB->set_field(
+            'local_fastpix_asset',
+            'gdpr_delete_attempts',
+            $nextattempt,
+            ['id' => $asset->id],
+        );
+
+        try {
+            $gateway->delete_media($asset->fastpix_id);
+            // Success: clear the pending flag. Local row stays soft-deleted.
+            // (cleanup task purges after retention window).
             $DB->set_field(
                 'local_fastpix_asset',
-                'gdpr_delete_attempts',
-                $nextattempt,
-                ['id' => $asset->id],
+                'gdpr_delete_pending_at',
+                null,
+                ['id' => $asset->id]
             );
+            $success++;
+        } catch (\local_fastpix\exception\gateway_not_found $e) {
+            // 404 From FastPix means the asset is already gone there.
+            // Treat as success — nothing to retry.
+            $DB->set_field(
+                'local_fastpix_asset',
+                'gdpr_delete_pending_at',
+                null,
+                ['id' => $asset->id]
+            );
+            $success++;
+        } catch (\Throwable $e) {
+            $failed++;
 
-            try {
-                $gateway->delete_media($asset->fastpix_id);
-                // Success: clear the pending flag. Local row stays soft-deleted
-                // (cleanup task purges after retention window).
-                $DB->set_field(
-                    'local_fastpix_asset',
-                    'gdpr_delete_pending_at',
-                    null,
-                    ['id' => $asset->id]
-                );
-                $success++;
-            } catch (\local_fastpix\exception\gateway_not_found $e) {
-                // 404 from FastPix means the asset is already gone there.
-                // Treat as success — nothing to retry.
-                $DB->set_field(
-                    'local_fastpix_asset',
-                    'gdpr_delete_pending_at',
-                    null,
-                    ['id' => $asset->id]
-                );
-                $success++;
-            } catch (\Throwable $e) {
-                $failed++;
-
-                if ($nextattempt >= self::MAX_ATTEMPTS) {
-                    $capped++;
-                    // CRITICAL log line — ops audit signal. Row stays in DB
-                    // with attempts at cap; future runs skip it via the
-                    // SELECT filter. fastpix_id is safe to log (not PII);
-                    // the asset's userid is NOT included.
-                    mtrace(sprintf(
-                        'retry_gdpr_delete: CRITICAL asset_row=%d fastpix_id=%s '
-                        . 'reached MAX_ATTEMPTS=%d, will not retry: %s',
-                        $asset->id,
-                        $asset->fastpix_id,
-                        self::MAX_ATTEMPTS,
-                        $e->getMessage(),
-                    ));
-                } else {
-                    mtrace(sprintf(
-                        'retry_gdpr_delete: asset_row=%d attempt=%d/%d failed: %s',
-                        $asset->id,
-                        $nextattempt,
-                        self::MAX_ATTEMPTS,
-                        $e->getMessage(),
-                    ));
-                }
+            if ($nextattempt >= self::MAX_ATTEMPTS) {
+                $capped++;
+                // CRITICAL log line — ops audit signal. Row stays in DB.
+                // With attempts at cap; future runs skip it via the.
+                // SELECT filter. fastpix_id is safe to log (not PII);
+                // The asset's userid is NOT included.
+                mtrace(sprintf(
+                    'retry_gdpr_delete: CRITICAL asset_row=%d fastpix_id=%s '
+                    . 'reached MAX_ATTEMPTS=%d, will not retry: %s',
+                    $asset->id,
+                    $asset->fastpix_id,
+                    self::MAX_ATTEMPTS,
+                    $e->getMessage(),
+                ));
+            } else {
+                mtrace(sprintf(
+                    'retry_gdpr_delete: asset_row=%d attempt=%d/%d failed: %s',
+                    $asset->id,
+                    $nextattempt,
+                    self::MAX_ATTEMPTS,
+                    $e->getMessage(),
+                ));
             }
         }
+    }
 
         $latencyms = (int)((microtime(true) - $start) * 1000);
         mtrace(sprintf(
@@ -174,5 +172,5 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
             $skipped,
             $latencyms
         ));
-    }
+}
 }

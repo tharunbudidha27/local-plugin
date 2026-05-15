@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -28,8 +27,6 @@ use local_fastpix\dto\playback_payload;
 use local_fastpix\exception\asset_not_found;
 use local_fastpix\exception\asset_not_ready;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Public chokepoint for playback-token minting.
  *
@@ -47,7 +44,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class playback_service {
-
     /**
      * Resolve a playback payload for a known, ready, non-deleted asset.
      *

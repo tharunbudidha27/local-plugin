@@ -8,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -20,6 +20,10 @@ namespace local_fastpix\service;
  * Tests for the feature flag service.
  *
  * @covers \local_fastpix\service\feature_flag_service
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class feature_flag_service_test extends \advanced_testcase {
     public function setUp(): void {
@@ -34,6 +38,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that drm enabled with flag off returns false.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_drm_enabled_with_flag_off_returns_false(): void {
@@ -44,6 +50,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that drm enabled with empty config id returns false.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_drm_enabled_with_empty_config_id_returns_false(): void {
@@ -54,6 +62,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that drm enabled with both set returns true.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_drm_enabled_with_both_set_returns_true(): void {
@@ -64,6 +74,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that watermark enabled returns config value.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_watermark_enabled_returns_config_value(): void {
@@ -75,6 +87,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that tracking enabled returns config value.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_tracking_enabled_returns_config_value(): void {
@@ -86,6 +100,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that drm configuration id returns null when empty.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_drm_configuration_id_returns_null_when_empty(): void {
@@ -97,6 +113,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that snapshot returns full state.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_snapshot_returns_full_state(): void {
@@ -114,6 +132,8 @@ final class feature_flag_service_test extends \advanced_testcase {
     }
 
     /**
+     * Test that reset clears singleton instance.
+     *
      * @covers \local_fastpix\service\feature_flag_service
      */
     public function test_reset_clears_singleton_instance(): void {

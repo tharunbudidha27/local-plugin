@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\external;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * External function: poll the status of an upload session.
@@ -46,9 +43,9 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class get_upload_status extends \core_external\external_api {
-
-    /** Web service parameter spec. */
-    public static function execute_parameters(): \core_external\external_function_parameters {
+    /**
+     * Web service parameter spec.
+     */    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -56,7 +53,7 @@ class get_upload_status extends \core_external\external_api {
                 VALUE_REQUIRED
             ),
         ]);
-    }
+}
 
     /**
      * Get the status of an upload session.
@@ -65,37 +62,38 @@ class get_upload_status extends \core_external\external_api {
      * @return array{session_id:int,upload_id:string,state:string,fastpix_id:string,expires_at:int}
      * @throws \local_fastpix\exception\asset_not_found if not found OR not owned by caller
      */
-    public static function execute(int $sessionid): array {
-        global $USER;
+public static function execute(int $sessionid): array {
+    global $USER;
 
-        // 1. Validate parameters first.
-        $params = self::validate_parameters(
-            self::execute_parameters(),
-            ['session_id' => $sessionid]
-        );
+    // 1. Validate parameters first.
+    $params = self::validate_parameters(
+        self::execute_parameters(),
+        ['session_id' => $sessionid]
+    );
 
-        // 2. Authenticate + authorize.
-        // No sesskey: type=read, idempotent, CSRF-safe per Moodle convention.
-        $context = \context_system::instance();
-        require_login(null, false);
-        require_capability('mod/fastpix:uploadmedia', $context);
+    // 2. Authenticate + authorize.
+    // No sesskey: type=read, idempotent, CSRF-safe per Moodle convention.
+    $context = \context_system::instance();
+    require_login(null, false);
+    require_capability('mod/fastpix:uploadmedia', $context);
 
-        // 3. Delegate to service. Ownership check is enforced in the SQL.
-        $result = \local_fastpix\service\upload_service::instance()
-            ->get_status((int)$params['session_id'], (int)$USER->id);
+    // 3. Delegate to service. Ownership check is enforced in the SQL.
+    $result = \local_fastpix\service\upload_service::instance()
+        ->get_status((int)$params['session_id'], (int)$USER->id);
 
-        // 4. Return matches execute_returns() structure.
-        return [
-            'session_id' => (int)$result->session_id,
-            'upload_id'  => (string)$result->upload_id,
-            'state'      => (string)$result->state,
-            'fastpix_id' => (string)$result->fastpix_id,
-            'expires_at' => (int)$result->expires_at,
-        ];
-    }
+    // 4. Return matches execute_returns() structure.
+    return [
+        'session_id' => (int)$result->session_id,
+        'upload_id'  => (string)$result->upload_id,
+        'state'      => (string)$result->state,
+        'fastpix_id' => (string)$result->fastpix_id,
+        'expires_at' => (int)$result->expires_at,
+    ];
+}
 
-    /** Web service return spec. */
-    public static function execute_returns(): \core_external\external_single_structure {
+    /**
+     * Web service return spec.
+     */    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -118,5 +116,5 @@ class get_upload_status extends \core_external\external_api {
                 'Unix timestamp at which the session expires'
             ),
         ]);
-    }
+}
 }

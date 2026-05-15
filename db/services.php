@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -25,9 +24,9 @@
 defined('MOODLE_INTERNAL') || die();
 
 // The 'description' fields below are English literals, NOT get_string() calls.
-// Empirical audit on 2026-05-05 of 23 mod/*/db/services.php files in Moodle 4.5
-// core shows zero use of get_string() in description — Moodle's web-services UI
-// does not pass description through the lang loader.
+// Empirical audit on 2026-05-05 of 23 mod/*/db/services.php files in Moodle 4.5.
+// Core shows zero use of get_string() in description — Moodle's web-services UI.
+// Does not pass description through the lang loader.
 
 $functions = [
     'local_fastpix_create_upload_session' => [

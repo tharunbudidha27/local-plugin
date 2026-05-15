@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\task;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Daily prune of processed webhook ledger rows older than 90 days.
@@ -40,39 +37,40 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class webhook_event_pruner extends \core\task\scheduled_task {
-
     /** @var string Table. */
     private const TABLE = 'local_fastpix_webhook_event';
     /** @var int Retention seconds. */
-    private const RETENTION_SECONDS = 7776000; // 90 days (rule W9)
+    private const RETENTION_SECONDS = 7776000; // 90 Days (rule W9).
 
-    /** Get name. */
-    public function get_name(): string {
+    /**
+     * Get name.
+     */    public function get_name(): string {
         return get_string('task_webhook_event_pruner', 'local_fastpix');
-    }
+}
 
-    /** Web service main entry point. */
-    public function execute(): void {
+    /**
+     * Web service main entry point.
+     */    public function execute(): void {
         global $DB;
 
         $cutoff = time() - self::RETENTION_SECONDS;
 
-        try {
-            $count = $DB->count_records_select(
-                self::TABLE,
-                "status = :status AND received_at < :cutoff",
-                ['status' => 'processed', 'cutoff' => $cutoff],
-            );
+    try {
+        $count = $DB->count_records_select(
+            self::TABLE,
+            "status = :status AND received_at < :cutoff",
+            ['status' => 'processed', 'cutoff' => $cutoff],
+        );
 
-            $DB->delete_records_select(
-                self::TABLE,
-                "status = :status AND received_at < :cutoff",
-                ['status' => 'processed', 'cutoff' => $cutoff],
-            );
+        $DB->delete_records_select(
+            self::TABLE,
+            "status = :status AND received_at < :cutoff",
+            ['status' => 'processed', 'cutoff' => $cutoff],
+        );
 
-            mtrace("webhook_event_pruner: deleted {$count} processed event(s) older than 90 days");
-        } catch (\Throwable $e) {
-            mtrace('webhook_event_pruner: prune failed: ' . $e->getMessage());
-        }
+        mtrace("webhook_event_pruner: deleted {$count} processed event(s) older than 90 days");
+    } catch (\Throwable $e) {
+        mtrace('webhook_event_pruner: prune failed: ' . $e->getMessage());
     }
+}
 }

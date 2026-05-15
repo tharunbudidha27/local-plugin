@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -24,8 +23,6 @@
  */
 namespace local_fastpix\webhook;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Webhook signature verifier (HMAC SHA-256, dual-secret rotation).
  *
@@ -34,11 +31,10 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class verifier {
-
     /** @var string Hmac algo. */
     private const HMAC_ALGO        = 'sha256';
     /** @var int Rotation window. */
-    private const ROTATION_WINDOW  = 1800; // 30 minutes
+    private const ROTATION_WINDOW  = 1800; // 30 Minutes.
 
     // Minimum acceptable length (bytes) for the configured webhook secret.
     /** @var int Min secret bytes. */
@@ -47,18 +43,22 @@ class verifier {
     /** @var ?self $instance */
     private static ?self $instance = null;
 
-    /** Constructor. */
-    private function __construct() {}
+    /**
+     * Constructor.
+     */    private function __construct() {
+}
 
-    /** Singleton accessor. */
-    public static function instance(): self {
+    /**
+     * Singleton accessor.
+     */    public static function instance(): self {
         return self::$instance ??= new self();
-    }
+}
 
-    /** Reset the singleton (used by tests). */
-    public static function reset(): void {
+    /**
+     * Reset the singleton (used by tests).
+     */    public static function reset(): void {
         self::$instance = null;
-    }
+}
 
     /**
      * Verify a FastPix webhook signature.
@@ -67,40 +67,40 @@ class verifier {
      * previous secret within the 30-minute rotation window. Returns false on
      * any failure — never throws (rule S7).
      */
-    public function verify(string $rawbody, string $signatureheader): bool {
-        if (strlen($signatureheader) < 1 || strlen($rawbody) < 1) {
-            debugging('webhook signature verify: empty body or signature', DEBUG_DEVELOPER);
-            return false;
-        }
-
-        $current = (string)get_config('local_fastpix', 'webhook_secret_current');
-        if (strlen($current) < 1) {
-            debugging('webhook signature verify: current secret not configured', DEBUG_DEVELOPER);
-            return false;
-        }
-        if (strlen($current) < self::MIN_SECRET_BYTES) {
-            $this->log_short_secret('current', strlen($current));
-            return false;
-        }
-
-        if ($this->matches_either_format($rawbody, $current, $signatureheader)) {
-            return true;
-        }
-
-        $previous = (string)get_config('local_fastpix', 'webhook_secret_previous');
-        $rotatedat = (int)get_config('local_fastpix', 'webhook_secret_rotated_at');
-        if ($previous !== '' && ($rotatedat > 0) && (time() - $rotatedat) < self::ROTATION_WINDOW) {
-            if (strlen($previous) < self::MIN_SECRET_BYTES) {
-                $this->log_short_secret('previous', strlen($previous));
-                return false;
-            }
-            if ($this->matches_either_format($rawbody, $previous, $signatureheader)) {
-                return true;
-            }
-        }
-
+public function verify(string $rawbody, string $signatureheader): bool {
+    if (strlen($signatureheader) < 1 || strlen($rawbody) < 1) {
+        debugging('webhook signature verify: empty body or signature', DEBUG_DEVELOPER);
         return false;
     }
+
+    $current = (string)get_config('local_fastpix', 'webhook_secret_current');
+    if (strlen($current) < 1) {
+        debugging('webhook signature verify: current secret not configured', DEBUG_DEVELOPER);
+        return false;
+    }
+    if (strlen($current) < self::MIN_SECRET_BYTES) {
+        $this->log_short_secret('current', strlen($current));
+        return false;
+    }
+
+    if ($this->matches_either_format($rawbody, $current, $signatureheader)) {
+        return true;
+    }
+
+    $previous = (string)get_config('local_fastpix', 'webhook_secret_previous');
+    $rotatedat = (int)get_config('local_fastpix', 'webhook_secret_rotated_at');
+    if ($previous !== '' && ($rotatedat > 0) && (time() - $rotatedat) < self::ROTATION_WINDOW) {
+        if (strlen($previous) < self::MIN_SECRET_BYTES) {
+            $this->log_short_secret('previous', strlen($previous));
+            return false;
+        }
+        if ($this->matches_either_format($rawbody, $previous, $signatureheader)) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
     /**
      * Compare the provided signature against the canonical FastPix shape:
@@ -115,56 +115,56 @@ class verifier {
      * fixtures without enlarging the production attack surface.
      * Per rule S3, all compares use hash_equals.
      */
-    private function matches_either_format(string $rawbody, string $secret, string $signatureheader): bool {
-        // FastPix canonical: secret is base64; output is base64.
-        $decodedsecret = base64_decode($secret, true);
+private function matches_either_format(string $rawbody, string $secret, string $signatureheader): bool {
+    // FastPix canonical: secret is base64; output is base64.
+    $decodedsecret = base64_decode($secret, true);
+    if ($decodedsecret !== false && $decodedsecret !== '') {
+        $rawhmac = hash_hmac(self::HMAC_ALGO, $rawbody, $decodedsecret, true);
+        if ($this->constant_time_compare(base64_encode($rawhmac), $signatureheader)) {
+            return true;
+        }
+    }
+
+    // Test-only fallbacks. Gated by a constant the production bootstrap.
+    // Never defines; tests opt in by defining it before driving verify().
+    if (defined('LOCAL_FASTPIX_DEBUG_VERIFIER') && LOCAL_FASTPIX_DEBUG_VERIFIER) {
         if ($decodedsecret !== false && $decodedsecret !== '') {
             $rawhmac = hash_hmac(self::HMAC_ALGO, $rawbody, $decodedsecret, true);
-            if ($this->constant_time_compare(base64_encode($rawhmac), $signatureheader)) {
+            if ($this->constant_time_compare(bin2hex($rawhmac), $signatureheader)) {
                 return true;
             }
         }
-
-        // Test-only fallbacks. Gated by a constant the production bootstrap
-        // never defines; tests opt in by defining it before driving verify().
-        if (defined('LOCAL_FASTPIX_DEBUG_VERIFIER') && LOCAL_FASTPIX_DEBUG_VERIFIER) {
-            if ($decodedsecret !== false && $decodedsecret !== '') {
-                $rawhmac = hash_hmac(self::HMAC_ALGO, $rawbody, $decodedsecret, true);
-                if ($this->constant_time_compare(bin2hex($rawhmac), $signatureheader)) {
-                    return true;
-                }
-            }
-            $rawhmacstr = hash_hmac(self::HMAC_ALGO, $rawbody, $secret, true);
-            if ($this->constant_time_compare(base64_encode($rawhmacstr), $signatureheader)) {
-                return true;
-            }
-            if ($this->constant_time_compare(bin2hex($rawhmacstr), $signatureheader)) {
-                return true;
-            }
+        $rawhmacstr = hash_hmac(self::HMAC_ALGO, $rawbody, $secret, true);
+        if ($this->constant_time_compare(base64_encode($rawhmacstr), $signatureheader)) {
+            return true;
         }
-
-        return false;
+        if ($this->constant_time_compare(bin2hex($rawhmacstr), $signatureheader)) {
+            return true;
+        }
     }
+
+    return false;
+}
 
     /**
      * Single structured log line on the short-secret rejection path.
      * Same JSON shape as gateway.call lines so ops can grep one log
      * stream. The secret value is NEVER included — only its length.
      */
-    private function log_short_secret(string $slot, int $length): void {
-        error_log(json_encode([
-            'event'  => 'webhook.secret_too_short',
-            'slot'   => $slot,
-            'length' => $length,
-            'min'    => self::MIN_SECRET_BYTES,
-        ]));
-    }
+private function log_short_secret(string $slot, int $length): void {
+    debugging(json_encode([
+        'event'  => 'webhook.secret_too_short',
+        'slot'   => $slot,
+        'length' => $length,
+        'min'    => self::MIN_SECRET_BYTES,
+    ]), DEBUG_DEVELOPER);
+}
 
     /**
      * Constant-time signature comparison. Wrapping hash_equals here makes
      * the static-analysis grep for forbidden comparisons (rule S3) trivial.
      */
-    private function constant_time_compare(string $expected, string $provided): bool {
-        return hash_equals($expected, $provided);
-    }
+private function constant_time_compare(string $expected, string $provided): bool {
+    return hash_equals($expected, $provided);
+}
 }

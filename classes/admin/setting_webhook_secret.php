@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\admin;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Webhook-secret admin setting that performs rotation as a save side-effect.
@@ -64,12 +61,13 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class setting_webhook_secret extends \admin_setting_configtext {
+    /**
+     * Minimum acceptable length, mirroring verifier::MIN_SECRET_BYTES.
+     */    private const MIN_LEN = 32;
 
-    /** Minimum acceptable length, mirroring verifier::MIN_SECRET_BYTES. */
-    private const MIN_LEN = 32;
-
-    /** Write setting. */
-    public function write_setting($data) {
+    /**
+     * Write setting.
+     */    public function write_setting($data) {
         $newvalue = is_string($data) ? trim($data) : '';
 
         if ($newvalue !== '' && strlen($newvalue) < self::MIN_LEN) {
@@ -84,8 +82,8 @@ class setting_webhook_secret extends \admin_setting_configtext {
         }
 
         if ($newvalue !== $oldvalue && $oldvalue !== '') {
-            set_config('webhook_secret_previous',   $oldvalue, 'local_fastpix');
-            set_config('webhook_secret_rotated_at', time(),    'local_fastpix');
+            set_config('webhook_secret_previous', $oldvalue, 'local_fastpix');
+            set_config('webhook_secret_rotated_at', time(), 'local_fastpix');
 
             try {
                 \local_fastpix\event\webhook_secret_rotated::create([
@@ -99,5 +97,5 @@ class setting_webhook_secret extends \admin_setting_configtext {
         }
 
         return '';
-    }
+}
 }

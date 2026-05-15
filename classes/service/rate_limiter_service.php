@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -24,8 +23,6 @@
  */
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Per-IP token-bucket rate limiter backed by MUC area 'rate_limit'.
  * Fail-open: any cache failure returns true so legitimate traffic is never
@@ -37,58 +34,63 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class rate_limiter_service {
-
     /** @var string Cache area. */
     private const CACHE_AREA = 'rate_limit';
 
     /** @var ?self $instance */
     private static ?self $instance = null;
 
-    /** Constructor. */
-    private function __construct() {}
+    /**
+     * Constructor.
+     */    private function __construct() {
+}
 
-    /** Singleton accessor. */
-    public static function instance(): self {
+    /**
+     * Singleton accessor.
+     */    public static function instance(): self {
         return self::$instance ??= new self();
-    }
+}
 
-    /** Reset the singleton (used by tests). */
-    public static function reset(): void {
+    /**
+     * Reset the singleton (used by tests).
+     */    public static function reset(): void {
         self::$instance = null;
-    }
+}
 
-    /** Allow. */
-    public function allow(string $ip, int $limitperminute = 60): bool {
-        try {
-            $cache       = \cache::make('local_fastpix', self::CACHE_AREA);
-            $key         = 'rl_' . substr(hash('sha256', $ip), 0, 32);
-            $capacity    = (float)$limitperminute;
-            $refillrate = $capacity / 60.0;
-            $now         = time();
+    /**
+     * Allow.
+     */    public function allow(string $ip, int $limitperminute = 60): bool {
+    try {
+        $cache       = \cache::make('local_fastpix', self::CACHE_AREA);
+        $key         = 'rl_' . substr(hash('sha256', $ip), 0, 32);
+        $capacity    = (float)$limitperminute;
+        $refillrate = $capacity / 60.0;
+        $now         = time();
 
-            $bucket = $cache->get($key);
-            if (!is_object($bucket) || !isset($bucket->tokens, $bucket->refilled_at)) {
-                $bucket = (object)['tokens' => $capacity, 'refilled_at' => $now];
-            }
+        $bucket = $cache->get($key);
+        if (!is_object($bucket) || !isset($bucket->tokens, $bucket->refilled_at)) {
+            $bucket = (object)['tokens' => $capacity, 'refilled_at' => $now];
+        }
 
-            $elapsed = max(0, $now - (int)$bucket->refilled_at);
-            $bucket->tokens = min($capacity, (float)$bucket->tokens + ($elapsed * $refillrate));
-            $bucket->refilled_at = $now;
+        $elapsed = max(0, $now - (int)$bucket->refilled_at);
+        $bucket->tokens = min($capacity, (float)$bucket->tokens + ($elapsed * $refillrate));
+        $bucket->refilled_at = $now;
 
-            if ($bucket->tokens >= 1.0) {
-                $bucket->tokens -= 1.0;
-                $cache->set($key, $bucket);
-                return true;
-            }
-
+        if ($bucket->tokens >= 1.0) {
+            $bucket->tokens -= 1.0;
             $cache->set($key, $bucket);
-            return false;
-
-        } catch (\Throwable $e) {
-            // Fail-open: never block legitimate traffic on cache failure.
-            debugging('rate_limiter: cache failure, failing open: ' . $e->getMessage(),
-                DEBUG_DEVELOPER);
             return true;
         }
+
+        $cache->set($key, $bucket);
+        return false;
+    } catch (\Throwable $e) {
+        // Fail-open: never block legitimate traffic on cache failure.
+        debugging(
+            'rate_limiter: cache failure, failing open: ' . $e->getMessage(),
+            DEBUG_DEVELOPER
+        );
+        return true;
     }
+}
 }

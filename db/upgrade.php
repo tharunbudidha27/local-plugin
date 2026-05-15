@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -22,8 +21,13 @@
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Upgrade the local_fastpix schema.
+ *
+ * @param int \$oldversion The currently installed version.
+ * @return bool true on success.
+ */
 function xmldb_local_fastpix_upgrade($oldversion) {
     global $DB;
     $dbman = $DB->get_manager();
@@ -48,15 +52,15 @@ function xmldb_local_fastpix_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026050504, 'local', 'fastpix');
     }
 
-    // 2026051200: v1.0 production-readiness cleanup.
-    //   - Bump user_hash_salt to 64 chars (rule S9). One-time historical
-    //     hash drift; documented in upgrade notes.
-    //   - Drop local_fastpix_sync_state (reserved for ADR-003 with no ADR;
-    //     unused schema removed per the v1.0 review N3 finding).
-    //   - Seed default_access_policy and max_resolution config rows so
-    //     existing installs pick up the upload-defaults UX.
-    //   - purge_soft_deleted_assets task auto-registered via db/tasks.php
-    //     on upgrade; no schema change required.
+    // 2026051200: V1.0 production-readiness cleanup.
+    // - Bump user_hash_salt to 64 chars (rule S9). One-time historical.
+    // Hash drift; documented in upgrade notes.
+    // - Drop local_fastpix_sync_state (reserved for ADR-003 with no ADR;
+    // Unused schema removed per the v1.0 review N3 finding).
+    // - Seed default_access_policy and max_resolution config rows so.
+    // Existing installs pick up the upload-defaults UX.
+    // - purge_soft_deleted_assets task auto-registered via db/tasks.php.
+    // On upgrade; no schema change required.
     if ($oldversion < 2026051200) {
         $salt = (string)get_config('local_fastpix', 'user_hash_salt');
         if (strlen($salt) < 64) {

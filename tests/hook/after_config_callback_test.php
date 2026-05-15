@@ -8,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -24,6 +24,10 @@ namespace local_fastpix\hook;
  * or touch the gateway. Injecting a trip-wire gateway whose every method
  * throws guarantees that any future change to the handler that invokes
  * the gateway directly OR indirectly will surface immediately.
+ *
+ * @package    local_fastpix
+ * @copyright  2026 FastPix Inc. <support@fastpix.io>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class after_config_callback_test extends \advanced_testcase {
     public function setUp(): void {
@@ -38,6 +42,8 @@ final class after_config_callback_test extends \advanced_testcase {
     }
 
     /**
+     * Test that handle makes no gateway calls.
+     *
      * @covers \local_fastpix\hook\after_config_callback
      */
     public function test_handle_makes_no_gateway_calls(): void {
@@ -69,6 +75,8 @@ final class after_config_callback_test extends \advanced_testcase {
     }
 
     /**
+     * Test that handle returns in under 10 milliseconds.
+     *
      * @covers \local_fastpix\hook\after_config_callback
      */
     public function test_handle_returns_in_under_10_milliseconds(): void {

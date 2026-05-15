@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -24,8 +23,6 @@
  */
 namespace local_fastpix\exception;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Asset not found.
  *
@@ -34,8 +31,9 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class asset_not_found extends \moodle_exception {
-    /** Constructor. */
-    public function __construct(string $context = '') {
+    /**
+     * Constructor.
+     */    public function __construct(string $context = '') {
         parent::__construct('asset_not_found', 'local_fastpix', '', $context);
-    }
+}
 }

@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,21 +22,21 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 // FastPix webhook endpoint. HMAC-authenticated; no session, no sesskey.
-// Thin HTTP wrapper around \local_fastpix\webhook\processor::process()
-// since 2026-05-06 — the verify-then-record-then-enqueue pipeline lives
-// in the processor so the admin "Send test event" button can drive the
-// same flow without HTTP, and integration tests can do the same.
+// Thin HTTP wrapper around \local_fastpix\webhook\processor::process().
+// Since 2026-05-06 — the verify-then-record-then-enqueue pipeline lives.
+// In the processor so the admin "Send test event" button can drive the.
+// Same flow without HTTP, and integration tests can do the same.
 //
-// HTTP-specific concerns stay here: body-size guard, per-IP rate limit,
-// status-code mapping. Everything else delegates.
+// HTTP-specific concerns stay here: body-size guard, per-IP rate limit,.
+// Status-code mapping. Everything else delegates.
 
 define('NO_DEBUG_DISPLAY', true);
 define('NO_MOODLE_COOKIES', true);
 
 require_once(__DIR__ . '/../../config.php');
 
-// 1. Body size guard (1 MiB cap). CONTENT_LENGTH may be missing on chunked
-//    transfer; treat absence as 0 (we still bail on empty body below).
+// 1. Body size guard (1 MiB cap). CONTENT_LENGTH may be missing on chunked.
+// Transfer; treat absence as 0 (we still bail on empty body below).
 $contentlength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
 if ($contentlength > 1048576) {
     http_response_code(413);
@@ -51,20 +50,20 @@ if ($rawbody === false) {
     die();
 }
 
-// 2a. FastPix validation ping. When the admin configures the webhook URL
-//     in FastPix's dashboard, FastPix POSTs an empty body (or '{}') to
-//     verify reachability — there's no signature on these probes. Must
-//     return 200 so FastPix accepts the URL configuration; rejecting
-//     would mark the URL as invalid in their dashboard. Validation pings
-//     are NOT real events and are NOT inserted into the ledger.
+// 2a. FastPix validation ping. When the admin configures the webhook URL.
+// In FastPix's dashboard, FastPix POSTs an empty body (or '{}') to.
+// Verify reachability — there's no signature on these probes. Must.
+// Return 200 so FastPix accepts the URL configuration; rejecting.
+// Would mark the URL as invalid in their dashboard. Validation pings.
+// Are NOT real events and are NOT inserted into the ledger.
 $trimmedbody = trim($rawbody);
 if ($trimmedbody === '' || $trimmedbody === '{}') {
-    error_log(json_encode([
+    debugging(json_encode([
         'event'       => 'webhook.validation_ping',
         'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
         'time'        => time(),
         'shape'       => $trimmedbody === '' ? 'empty' : 'curly_braces',
-    ]));
+    ]), DEBUG_DEVELOPER);
     http_response_code(200);
     die();
 }
@@ -83,8 +82,8 @@ $result = \local_fastpix\webhook\processor::process($rawbody, $signature);
 switch ($result['result']) {
     case \local_fastpix\webhook\processor::RESULT_ACCEPTED:
     case \local_fastpix\webhook\processor::RESULT_DUPLICATE:
-        // Duplicate is success from FastPix's perspective — they already
-        // got a 200 for this event_id once and our ledger has it.
+        // Duplicate is success from FastPix's perspective — they already.
+        // Got a 200 for this event_id once and our ledger has it.
         http_response_code(200);
         break;
 
@@ -98,10 +97,10 @@ switch ($result['result']) {
 
     case \local_fastpix\webhook\processor::RESULT_DB_ERROR:
     default:
-        // Real DB bug surfaced (FK violation, NOT NULL, etc.). Return
-        // 500 so FastPix retries on its normal schedule AND ops sees
-        // it in error logs. Per I1: silently 200ing here would mask
-        // schema bugs.
+        // Real DB bug surfaced (FK violation, NOT NULL, etc.). Return.
+        // 500 so FastPix retries on its normal schedule AND ops sees.
+        // It in error logs. Per I1: silently 200ing here would mask.
+        // Schema bugs.
         http_response_code(500);
         break;
 }

@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\external;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Admin "Test Connection" web service.
@@ -43,54 +40,63 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class test_connection extends \core_external\external_api {
-
-    /** Web service parameter spec. */
-    public static function execute_parameters(): \core_external\external_function_parameters {
+    /**
+     * Web service parameter spec.
+     */    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([]);
-    }
+}
 
     /**
+     * Execute.
+     *
      * @return array{success: bool, latency_ms: int, error: string|null}
      */
-    public static function execute(): array {
-        $context = \context_system::instance();
-        self::validate_context($context);
-        require_login(null, false);
-        require_sesskey();
-        require_capability('local/fastpix:configurecredentials', $context);
+public static function execute(): array {
+    $context = \context_system::instance();
+    self::validate_context($context);
+    require_login(null, false);
+    require_sesskey();
+    require_capability('local/fastpix:configurecredentials', $context);
 
-        $start = microtime(true);
-        $success = false;
-        $error = null;
-        try {
-            $success = (bool)\local_fastpix\api\gateway::instance()->health_probe();
-            if (!$success) {
-                $error = 'health_probe returned false';
-            }
-        } catch (\Throwable $e) {
-            $error = get_class($e) . ': ' . $e->getMessage();
+    $start = microtime(true);
+    $success = false;
+    $error = null;
+    try {
+        $success = (bool)\local_fastpix\api\gateway::instance()->health_probe();
+        if (!$success) {
+            $error = 'health_probe returned false';
         }
-        $latencyms = (int)((microtime(true) - $start) * 1000);
-
-        return [
-            'success'    => $success,
-            'latency_ms' => $latencyms,
-            'error'      => $error,
-        ];
+    } catch (\Throwable $e) {
+        $error = get_class($e) . ': ' . $e->getMessage();
     }
+    $latencyms = (int)((microtime(true) - $start) * 1000);
 
-    /** Web service return spec. */
-    public static function execute_returns(): \core_external\external_single_structure {
+    return [
+        'success'    => $success,
+        'latency_ms' => $latencyms,
+        'error'      => $error,
+    ];
+}
+
+    /**
+     * Web service return spec.
+     */    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'success' => new \core_external\external_value(
-                PARAM_BOOL, 'true on a 2xx response from the gateway'
+                PARAM_BOOL,
+                'true on a 2xx response from the gateway'
             ),
             'latency_ms' => new \core_external\external_value(
-                PARAM_INT, 'wall-clock time spent in the probe'
+                PARAM_INT,
+                'wall-clock time spent in the probe'
             ),
             'error' => new \core_external\external_value(
-                PARAM_TEXT, 'human-readable failure reason', VALUE_OPTIONAL, null, NULL_ALLOWED
+                PARAM_TEXT,
+                'human-readable failure reason',
+                VALUE_OPTIONAL,
+                null,
+                NULL_ALLOWED
             ),
         ]);
-    }
+}
 }

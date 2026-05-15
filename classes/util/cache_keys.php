@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -23,8 +22,6 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace local_fastpix\util;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Single source of truth for the asset-cache key formula.
@@ -54,17 +51,19 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class cache_keys {
+    /**
+     * Number of hex chars retained from the SHA-256 digest.
+     */    private const TRUNCATE_TO = 32;
 
-    /** Number of hex chars retained from the SHA-256 digest. */
-    private const TRUNCATE_TO = 32;
-
-    /** Fastpix. */
-    public static function fastpix(string $fastpixid): string {
+    /**
+     * Fastpix.
+     */    public static function fastpix(string $fastpixid): string {
         return 'fp_' . substr(hash('sha256', $fastpixid), 0, self::TRUNCATE_TO);
-    }
+}
 
-    /** Playback. */
-    public static function playback(string $playbackid): string {
+    /**
+     * Playback.
+     */    public static function playback(string $playbackid): string {
         return 'pb_' . substr(hash('sha256', $playbackid), 0, self::TRUNCATE_TO);
-    }
+}
 }

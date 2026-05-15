@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -87,7 +86,7 @@ $string['privacy:metadata:upload_session:timecreated']  = 'When the upload sessi
 $string['privacy:metadata:fastpix']                     = 'FastPix.io — external video hosting service';
 $string['privacy:metadata:fastpix:owner_userhash']      = 'An HMAC-derived hash of the user ID (no plaintext PII sent)';
 $string['privacy:metadata:fastpix:site_url']            = 'The Moodle site URL (used for cross-asset audit)';
-// v1.0 cleanup — new strings.
+// V1.0 cleanup — new strings.
 $string['task_purge_soft_deleted_assets'] = 'Hard-purge soft-deleted assets after 7 days';
 $string['event_webhook_secret_rotated']   = 'Webhook signing secret rotated';
 
@@ -120,10 +119,10 @@ $string['send_test_event_running'] = 'Sending…';
 $string['send_test_event_success'] = 'Test event delivered (ledger id {$a})';
 $string['send_test_event_failed']  = 'Failed: {$a}';
 
-// settings.php — access policy select option labels.
+// Settings.php — access policy select option labels.
 $string['access_policy_public']  = 'public — plays without a token';
 $string['access_policy_private'] = 'private — requires a JWT';
 $string['access_policy_drm']     = 'drm — requires a JWT plus a configured DRM Configuration ID';
 
-// settings.php — rotation status display.
+// Settings.php — rotation status display.
 $string['setting_webhook_secret_rotated_at'] = 'Last secret rotation';

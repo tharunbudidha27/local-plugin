@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -26,16 +25,16 @@
 //
 // Admin settings page for the FastPix integration plugin.
 //
-// Evaluated by Moodle's admin tree on every admin request. Only the OUTER
-// settings-page registration runs unconditionally; all widget construction
-// is gated by `$ADMIN->fulltree` (the admin is actually rendering this
-// page, not just walking the tree for navigation) AND
-// `has_capability('local/fastpix:configurecredentials')` so a delegated
+// Evaluated by Moodle's admin tree on every admin request. Only the OUTER.
+// Settings-page registration runs unconditionally; all widget construction.
+// Is gated by `$ADMIN->fulltree` (the admin is actually rendering this.
+// Page, not just walking the tree for navigation) AND.
+// `Has_capability('local/fastpix:configurecredentials')` so a delegated.
 // "credentials manager" role does not need site-config to manage FastPix.
 //
-// Idempotent + read-only here. No DB writes, no gateway calls — the
-// settings tree is walked many times per request and a slow path here
-// would block every admin page render (audit drill 2026-05-11).
+// Idempotent + read-only here. No DB writes, no gateway calls — the.
+// Settings tree is walked many times per request and a slow path here.
+// Would block every admin page render (audit drill 2026-05-11).
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -56,38 +55,18 @@ if (!$ADMIN->fulltree) {
 if (!has_capability('local/fastpix:configurecredentials', context_system::instance())) {
     return;
 }
+// Helper — emit an admin_setting_description that renders a button + a.
+// Status span + a muted descriptor. Centralizes the markup so the two.
+// Admin buttons (Test connection, Send test event) stay byte-identical.
 
-// ---------------------------------------------------------------------------
-// Helper — emit an admin_setting_description that renders a button + a
-// status span + a muted descriptor. Centralizes the markup so the two
-// admin buttons (Test connection, Send test event) stay byte-identical.
-// ---------------------------------------------------------------------------
-
-/**
- * Build the HTML for an inline admin button + status pair.
- *
- * @param string $buttonid      DOM id of the button.
- * @param string $statusid      DOM id of the status span.
- * @param string $labelkey      Lang string key for the button label.
- * @param string $descriptionkey Lang string key for the muted descriptor.
- * @return string
- */
-/**
- * Build the HTML for an inline admin button + status pair + an inline
- * <script> tag that wires a click handler. Uses native fetch() against
- * /lib/ajax/service.php (the same endpoint Moodle's core/ajax AMD
- * module uses) so we don't depend on the AMD loader — which has been
- * unreliable enough on this dev stack to break sibling admin widgets.
- *
- * @param string $buttonid        DOM id of the button.
- * @param string $statusid        DOM id of the status span.
- * @param string $labelkey        Lang string key for the button label.
- * @param string $descriptionkey  Lang string key for the muted descriptor.
- * @param string $methodname      Moodle external function name to invoke.
- * @param string $successtpl      JS template; {$a} replaced with success field.
- * @param string $successfield    Result field used in success line (e.g. 'latency_ms').
- * @return string
- */
+// Build the HTML for an inline admin button + status pair + an inline.
+// Script tag that wires a click handler. Uses native fetch() against.
+// /Lib/ajax/service.php (the same endpoint Moodle's core/ajax AMD module.
+// Uses) so we don't depend on the AMD loader — which has been unreliable.
+// Enough on this dev stack to break sibling admin widgets.
+//
+// Parameters: $buttonid, $statusid, $labelkey, $descriptionkey,.
+// $methodname, $successtpl, $successfield. Returns the rendered HTML.
 $localfastpixbuttonhtml = static function (
     string $buttonid,
     string $statusid,
@@ -106,14 +85,15 @@ $localfastpixbuttonhtml = static function (
         'id'    => $statusid,
         'class' => 'ml-2 ms-2 local-fastpix-status',
     ]);
-    $description = \html_writer::tag('div',
+    $description = \html_writer::tag(
+        'div',
         get_string($descriptionkey, 'local_fastpix'),
         ['class' => 'form-text text-muted'],
     );
 
-    // Inline <script> binding. Reads sesskey from M.cfg.sesskey (always
-    // available on admin pages). All JSON encoding via PHP-side
-    // json_encode so we don't smuggle user input into JS.
+    // Inline <script> binding. Reads sesskey from M.cfg.sesskey (always.
+    // Available on admin pages). All JSON encoding via PHP-side.
+    // Json_encode so we don't smuggle user input into JS.
     $args = [
         'buttonId'     => $buttonid,
         'statusId'     => $statusid,
@@ -181,7 +161,7 @@ SCRIPT;
     return $button . ' ' . $status . $description . $script;
 };
 
-// ---- 1. API credentials ---------------------------------------------------
+// 1. API credentials.
 
 $settings->add(new admin_setting_heading(
     'local_fastpix/heading_credentials',
@@ -197,13 +177,13 @@ $settings->add(new admin_setting_configtext(
     PARAM_RAW_TRIMMED,
 ));
 
-// Plain text input instead of admin_setting_configpasswordunmask. The
-// passwordunmask widget depends on the core_admin/show_unmask_password
-// AMD module to bind its "click to edit" affordance; in our dev stack
-// that JS chain is intermittently broken, leaving the field inert.
-// The secret is stored as plaintext in mdl_config_plugins regardless
-// of the widget (rule S8 — already disclosed in README.md), so the
-// visual mask was cosmetic. The text input is always editable.
+// Plain text input instead of admin_setting_configpasswordunmask. The.
+// Passwordunmask widget depends on the core_admin/show_unmask_password.
+// AMD module to bind its "click to edit" affordance; in our dev stack.
+// That JS chain is intermittently broken, leaving the field inert.
+// The secret is stored as plaintext in mdl_config_plugins regardless.
+// Of the widget (rule S8 — already disclosed in README.md), so the.
+// Visual mask was cosmetic. The text input is always editable.
 $settings->add(new admin_setting_configtext(
     'local_fastpix/apisecret',
     new lang_string('setting_apisecret', 'local_fastpix'),
@@ -228,7 +208,7 @@ $settings->add(new admin_setting_description(
     ),
 ));
 
-// ---- 2. Upload defaults ---------------------------------------------------
+// 2. Upload defaults.
 
 $settings->add(new admin_setting_heading(
     'local_fastpix/heading_upload_defaults',
@@ -242,9 +222,9 @@ $settings->add(new admin_setting_configselect(
     new lang_string('setting_default_access_policy_desc', 'local_fastpix'),
     'private',
     [
-        'public'  => new lang_string('access_policy_public',  'local_fastpix'),
+        'public'  => new lang_string('access_policy_public', 'local_fastpix'),
         'private' => new lang_string('access_policy_private', 'local_fastpix'),
-        'drm'     => new lang_string('access_policy_drm',     'local_fastpix'),
+        'drm'     => new lang_string('access_policy_drm', 'local_fastpix'),
     ],
 ));
 
@@ -262,7 +242,7 @@ $settings->add(new admin_setting_configselect(
     ],
 ));
 
-// ---- 3. Feature flags -----------------------------------------------------
+// 3. Feature flags.
 
 $settings->add(new admin_setting_heading(
     'local_fastpix/heading_features',
@@ -285,15 +265,15 @@ $settings->add(new admin_setting_configtext(
     PARAM_RAW_TRIMMED,
 ));
 
-// Hide the DRM config id when the DRM feature flag is OFF (rule W12 double
-// gate is enforced at runtime; this is just UI clarity).
+// Hide the DRM config id when the DRM feature flag is OFF (rule W12 double.
+// Gate is enforced at runtime; this is just UI clarity).
 $settings->hide_if(
     'local_fastpix/drm_configuration_id',
     'local_fastpix/feature_drm_enabled',
     'notchecked',
 );
 
-// ---- 4. Webhooks ----------------------------------------------------------
+// 4. Webhooks.
 
 $settings->add(new admin_setting_heading(
     'local_fastpix/heading_webhooks',
@@ -301,8 +281,8 @@ $settings->add(new admin_setting_heading(
     new lang_string('settings_webhooks_desc', 'local_fastpix'),
 ));
 
-// Conditional "not configured" notice — only when the secret is empty so
-// the warning disappears on first paste.
+// Conditional "not configured" notice — only when the secret is empty so.
+// The warning disappears on first paste.
 if (trim((string)get_config('local_fastpix', 'webhook_secret_current')) === '') {
     $settings->add(new admin_setting_description(
         'local_fastpix/webhook_secret_not_configured_notice',
@@ -328,9 +308,9 @@ $settings->add(new \local_fastpix\admin\setting_webhook_secret(
     '',
 ));
 
-// Last-rotation timestamp display (read-only operator hint). Only shown
-// when a rotation has actually occurred. Format via userdate so it
-// respects the operator's timezone / locale.
+// Last-rotation timestamp display (read-only operator hint). Only shown.
+// When a rotation has actually occurred. Format via userdate so it.
+// Respects the operator's timezone / locale.
 $rotatedat = (int)get_config('local_fastpix', 'webhook_secret_rotated_at');
 if ($rotatedat > 0) {
     $settings->add(new admin_setting_description(

@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -9,7 +8,7 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
@@ -40,8 +39,8 @@ $definitions = [
         'simpledata' => true,
         'ttl'        => 60,
     ],
-    // Circuit breaker state. CRITICAL: must be in MUC (shared store, e.g. Redis)
-    // for multi-FPM correctness. Document this requirement in README.
+    // Circuit breaker state. CRITICAL: must be in MUC (shared store, e.g. Redis).
+    // For multi-FPM correctness. Document this requirement in README.
     'circuit_breaker' => [
         'mode'       => cache_store::MODE_APPLICATION,
         'simplekeys' => true,
