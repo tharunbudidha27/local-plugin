@@ -29,12 +29,10 @@ use local_fastpix\exception\asset_not_ready;
 
 /**
  * Public chokepoint for playback-token minting.
- *
  * Authorized by ADR-013. The four sibling plugins (mod_fastpix,
  * filter_fastpix, tinymce_fastpix, future viewer) MUST go through
  * this service to obtain a JWT — direct use of jwt_signing_service
  * is a PR-3 violation (consumer contract CC1).
- *
  * Read-path. No gateway call (rule W7), no DB write. The asset is
  * looked up via asset_service::get_by_fastpix_id which is MUC-cached;
  * the JWT mint itself is 1–5ms and never cached (rule S10).
@@ -46,7 +44,6 @@ use local_fastpix\exception\asset_not_ready;
 class playback_service {
     /**
      * Resolve a playback payload for a known, ready, non-deleted asset.
-     *
      * The caller is trusted (mod_fastpix has already done require_login,
      * capability check, and activity-context verification). $userid is
      * accepted to match the consumer-contract signature and reserved
@@ -56,6 +53,9 @@ class playback_service {
      * @throws asset_not_found  if asset missing or soft-deleted
      * @throws asset_not_ready  if asset exists but status != 'ready'
      * @throws \local_fastpix\exception\signing_key_missing  bubbled from JWT mint
+     * @param string $fastpixid
+     * @param int $userid
+     * @return playback_payload
      */
     public static function resolve(string $fastpixid, int $userid): playback_payload {
         $asset = asset_service::get_by_fastpix_id($fastpixid);

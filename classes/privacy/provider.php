@@ -43,7 +43,7 @@ class provider implements
     \core_privacy\local\request\plugin\provider {
     /**
      * Get metadata.
-     */    public static function get_metadata(collection $collection): collection {
+     **/    public static function get_metadata(collection $collection): collection {
         $collection->add_database_table(
             'local_fastpix_asset',
             [
@@ -82,7 +82,7 @@ class provider implements
 
     /**
      * Get contexts for userid.
-     */    public static function get_contexts_for_userid(int $userid): contextlist {
+     **/    public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new contextlist();
         $contextlist->add_system_context();
         return $contextlist;
@@ -90,7 +90,7 @@ class provider implements
 
     /**
      * Get users in context.
-     */    public static function get_users_in_context(userlist $userlist): void {
+     **/    public static function get_users_in_context(userlist $userlist): void {
         $context = $userlist->get_context();
     if (!($context instanceof \context_system)) {
         return;
@@ -104,7 +104,7 @@ class provider implements
 
     /**
      * Export user data.
-     */    public static function export_user_data(approved_contextlist $contextlist): void {
+     **/    public static function export_user_data(approved_contextlist $contextlist): void {
     if (empty($contextlist->count())) {
         return;
     }
@@ -132,7 +132,7 @@ class provider implements
 
     /**
      * Delete data for all users in context.
-     */    public static function delete_data_for_all_users_in_context(\context $context): void {
+     **/    public static function delete_data_for_all_users_in_context(\context $context): void {
     if (!($context instanceof \context_system)) {
         return;
     }
@@ -166,7 +166,7 @@ class provider implements
 
     /**
      * Delete data for user.
-     */    public static function delete_data_for_user(approved_contextlist $contextlist): void {
+     **/    public static function delete_data_for_user(approved_contextlist $contextlist): void {
     if (empty($contextlist->count())) {
         return;
     }
@@ -194,7 +194,7 @@ class provider implements
 
     /**
      * Delete data for users.
-     */    public static function delete_data_for_users(approved_userlist $userlist): void {
+     **/    public static function delete_data_for_users(approved_userlist $userlist): void {
         $context = $userlist->get_context();
     if (!($context instanceof \context_system)) {
         return;

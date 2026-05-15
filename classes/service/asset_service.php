@@ -38,7 +38,7 @@ class asset_service {
 
     /**
      * Get by fastpix id.
-     */    public static function get_by_fastpix_id(string $fastpixid, bool $includedeleted = false): ?\stdClass {
+     **/    public static function get_by_fastpix_id(string $fastpixid, bool $includedeleted = false): ?\stdClass {
         $cache = self::cache();
         $key = self::cache_key_fastpix($fastpixid);
 
@@ -65,7 +65,7 @@ class asset_service {
 
     /**
      * Get by playback id.
-     */    public static function get_by_playback_id(string $playbackid, bool $includedeleted = false): ?\stdClass {
+     **/    public static function get_by_playback_id(string $playbackid, bool $includedeleted = false): ?\stdClass {
         $cache = self::cache();
         $key = self::cache_key_playback($playbackid);
 
@@ -90,7 +90,7 @@ class asset_service {
 
     /**
      * Get by id.
-     */    public static function get_by_id(int $id, bool $includedeleted = false): ?\stdClass {
+     **/    public static function get_by_id(int $id, bool $includedeleted = false): ?\stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, ['id' => $id]);
     if (!$row) {
@@ -104,10 +104,12 @@ class asset_service {
 
     /**
      * Lookup an asset by upload_session id. ADR-013 §2 entry point.
-     *
      * Returns null when the session row doesn't exist, has no fastpix_id
      * yet (webhook still in flight), or the linked asset row is
      * soft-deleted. Caching contract piggybacks on get_by_fastpix_id.
+     *
+     * @param int $sessionid
+     * @return ?\stdClass
      */
 public static function get_by_upload_session_id(int $sessionid): ?\stdClass {
     global $DB;
@@ -125,6 +127,9 @@ public static function get_by_upload_session_id(int $sessionid): ?\stdClass {
     /**
      * Read-path lazy fetch. May call the gateway exactly once on cold start.
      * Forbidden on write paths (rule W7).
+     *
+     * @param string $fastpixid
+     * @return \stdClass
      */
 public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass {
     $asset = self::get_by_fastpix_id($fastpixid);
@@ -197,7 +202,7 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
 
     /**
      * List for owner.
-     */    public static function list_for_owner(int $userid, ?string $status = 'ready', int $limit = 50): array {
+     **/    public static function list_for_owner(int $userid, ?string $status = 'ready', int $limit = 50): array {
         global $DB;
 
         $conditions = ['owner_userid' => $userid];
@@ -219,7 +224,7 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
 
     /**
      * List for owner paginated.
-     */    public static function list_for_owner_paginated(
+     **/    public static function list_for_owner_paginated(
     int $userid,
     ?string $status,
     int $offset,
@@ -257,7 +262,7 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
 
     /**
      * Soft delete.
-     */    public static function soft_delete(int $id): void {
+     **/    public static function soft_delete(int $id): void {
         global $DB;
 
         $row = $DB->get_record(self::TABLE, ['id' => $id], 'id, fastpix_id, playback_id');
@@ -279,7 +284,7 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
 
     /**
      * Cache.
-     */    private static function cache(): \cache_application {
+     **/    private static function cache(): \cache_application {
         return \cache::make('local_fastpix', 'asset');
 }
 
@@ -287,6 +292,9 @@ public static function get_by_fastpix_id_or_fetch(string $fastpixid): \stdClass 
      * MUC area 'asset' is declared simplekeys=true, so cache keys must be
      * alphanumeric + underscore only. We hash the IDs and add a 2-char prefix
      * to keep the fastpix_id and playback_id namespaces disjoint.
+     *
+     * @param string $fastpixid
+     * @return string
      */
 private static function cache_key_fastpix(string $fastpixid): string {
     return \local_fastpix\util\cache_keys::fastpix($fastpixid);
@@ -294,13 +302,13 @@ private static function cache_key_fastpix(string $fastpixid): string {
 
     /**
      * Cache helper for key playback.
-     */    private static function cache_key_playback(string $playbackid): string {
+     **/    private static function cache_key_playback(string $playbackid): string {
         return \local_fastpix\util\cache_keys::playback($playbackid);
 }
 
     /**
      * Invalidate cache.
-     */    private static function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+     **/    private static function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = self::cache();
         $cache->delete(self::cache_key_fastpix($fastpixid));
     if (!empty($playbackid)) {
@@ -310,7 +318,7 @@ private static function cache_key_fastpix(string $fastpixid): string {
 
     /**
      * Whether caption track.
-     */    private static function has_caption_track(object $data): bool {
+     **/    private static function has_caption_track(object $data): bool {
     if (empty($data->tracks) || !is_array($data->tracks)) {
         return false;
     }

@@ -18,18 +18,15 @@ namespace local_fastpix;
 
 /**
  * Regression guard for REVIEW-2026-05-04 §S-1.
- *
  * T1.1 replaced CRC32 cache keys (32-bit, ~77K-asset birthday-collision
  * threshold → cross-asset metadata leak) with SHA-256-truncated-to-32
  * keys across 9 sites in 6 files. Two of those sites were not in the
  * original review and were caught only by audit, so a mechanical guard
  * exists to prevent any future commit from re-introducing the pattern.
- *
  * Forbidden in production source:
  *   - hash('crc32b', ...)
  *   - hash('crc32',  ...)
  *   - crc32(...) — the bare PHP builtin, also 32-bit
- *
  * Allowed:
  *   - This test file itself (it inspects forbidden strings as data).
  *   - Anything under classes/vendor/ (vendored third-party code).
@@ -49,7 +46,7 @@ final class no_crc32_regression_test extends \advanced_testcase {
 
     /**
      * Files explicitly exempted from the scan.
-     */    private const ALLOWLIST = [
+     **/    private const ALLOWLIST = [
         'tests/no_crc32_regression_test.php',
     ];
 

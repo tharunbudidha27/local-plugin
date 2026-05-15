@@ -25,11 +25,9 @@ namespace local_fastpix\external;
 
 /**
  * External function: create a direct file upload session against FastPix.
- *
  * Per architecture doc §3.3 (Direct upload session) and §15.4 (upload service).
  * Per @upload-service agent: this endpoint is responsible for capability
  * + sesskey + login enforcement. The service layer does NOT enforce them.
- *
  * Registered in db/services.php as 'local_fastpix_create_upload_session'.
  * Capability: mod/fastpix:uploadmedia (per ADR-012, owned by mod_fastpix).
  *
@@ -40,7 +38,7 @@ namespace local_fastpix\external;
 class create_upload_session extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     */    public static function execute_parameters(): \core_external\external_function_parameters {
+     **/    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'filename' => new \core_external\external_value(
                 PARAM_TEXT,
@@ -99,7 +97,7 @@ public static function execute(string $filename, int $size): array {
 
     /**
      * Web service return spec.
-     */    public static function execute_returns(): \core_external\external_single_structure {
+     **/    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,

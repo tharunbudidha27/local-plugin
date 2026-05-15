@@ -28,13 +28,11 @@ use local_fastpix\util\cache_keys;
 /**
  * Daily hard-purge of assets that have been soft-deleted for ≥ 7 days
  * (rule W10).
- *
  * Soft-delete is the user-facing action: `asset_service::soft_delete()`
  * stamps `deleted_at` on the row and invalidates the asset cache. After
  * a 7-day grace window the row is hard-deleted by this task — caption
  * rows in `local_fastpix_track` are removed in the same loop because
  * the FK is declared without ON DELETE CASCADE.
- *
  * Distinct from `asset_cleanup`, which handles a different lifecycle:
  * GDPR-pending rows where the local delete succeeded but the FastPix
  * delete failed (gdpr_delete_pending_at).
@@ -56,13 +54,13 @@ class purge_soft_deleted_assets extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_purge_soft_deleted_assets', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $startms = (int)(microtime(true) * 1000);

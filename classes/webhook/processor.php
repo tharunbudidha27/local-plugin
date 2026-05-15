@@ -25,17 +25,14 @@ namespace local_fastpix\webhook;
 
 /**
  * Verify-record-enqueue pipeline extracted from webhook.php.
- *
  * Both the HTTP endpoint (webhook.php) and the admin "Send test event"
  * button (\local_fastpix\external\send_test_event) drive the same flow
  * through this processor so the projection contract is exercised by
  * both surfaces.
- *
  * Inputs:
  *   - $rawbody: the bytes of the POST body (must be read via
  *     file_get_contents('php://input') BEFORE any framework parsing).
  *   - $signatureheader: FastPix-Signature header value.
- *
  * Outputs (array shape):
  *   [
  *     'result'    => RESULT_*,                  (one of the constants below)
@@ -65,7 +62,7 @@ class processor {
 
     /**
      * Process.
-     */    public static function process(string $rawbody, string $signatureheader): array {
+     **/    public static function process(string $rawbody, string $signatureheader): array {
         global $DB;
 
         // 1. Signature verification (rule S3 — hash_equals via verifier).

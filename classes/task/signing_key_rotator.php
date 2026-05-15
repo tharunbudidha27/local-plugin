@@ -38,13 +38,13 @@ class signing_key_rotator extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_signing_key_rotator', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         $createdat = (int)get_config('local_fastpix', 'signing_key_created_at');
 
     if ($createdat <= 0) {

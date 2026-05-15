@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the upload service.
  *
  * @covers \local_fastpix\service\upload_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -47,7 +46,7 @@ final class upload_service_test extends \advanced_testcase {
 
     /**
      * Helper: inject gateway mock.
-     */    private function inject_gateway_mock($mock): void {
+     **/    private function inject_gateway_mock($mock): void {
         $reflection = new \ReflectionClass(\local_fastpix\api\gateway::class);
         $prop = $reflection->getProperty('instance');
         $prop->setAccessible(true);
@@ -56,7 +55,7 @@ final class upload_service_test extends \advanced_testcase {
 
     /**
      * Helper: default file upload response.
-     */    private function default_file_upload_response(string $uploadid = 'u1'): \stdClass {
+     **/    private function default_file_upload_response(string $uploadid = 'u1'): \stdClass {
         return (object)['data' => (object)[
             'uploadId' => $uploadid,
             'url'      => 'https://up.fastpix.io/' . $uploadid,
@@ -65,7 +64,7 @@ final class upload_service_test extends \advanced_testcase {
 
     /**
      * Helper: default url pull response.
-     */    private function default_url_pull_response(string $mediaid = 'media-pull-1'): \stdClass {
+     **/    private function default_url_pull_response(string $mediaid = 'media-pull-1'): \stdClass {
         return (object)['data' => (object)[
             'id'     => $mediaid,
             'status' => 'preparing',

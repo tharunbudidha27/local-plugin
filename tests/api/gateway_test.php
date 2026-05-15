@@ -23,13 +23,8 @@ use local_fastpix\service\credential_service;
  * Tests for the gateway.
  *
  * @covers \local_fastpix\api\gateway
-
- *
-
  * @package    local_fastpix
-
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
-
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class gateway_test extends \advanced_testcase {
@@ -50,6 +45,10 @@ final class gateway_test extends \advanced_testcase {
     /**
      * Build a gateway with mocked http_client and credential_service.
      * Constructor is private; use reflection to bypass it.
+     *
+     * @param mixed $httpmock
+     * @param mixed $credentialmock
+     * @return gateway
      */
     private function build_gateway($httpmock, $credentialmock = null): gateway {
         if ($credentialmock === null) {
@@ -78,7 +77,7 @@ final class gateway_test extends \advanced_testcase {
 
     /**
      * Helper: http mock returning.
-     */    private function http_mock_returning(array $responses) {
+     **/    private function http_mock_returning(array $responses) {
         $mock = $this->createMock(\core\http_client::class);
         $mock->method('request')->willReturnOnConsecutiveCalls(...$responses);
         return $mock;

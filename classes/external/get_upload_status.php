@@ -25,15 +25,12 @@ namespace local_fastpix\external;
 
 /**
  * External function: poll the status of an upload session.
- *
  * Read-only. Returns the current state of the upload session row including
  * whether the FastPix media UUID has been linked yet (populated when the
  * video.media.created webhook lands).
- *
  * Per architecture doc §15.4 (upload service) and @security-compliance:
  * ownership is enforced in the service layer's SQL — a user cannot poll
  * another user's session even if they hold the :uploadmedia capability.
- *
  * Registered in db/services.php as 'local_fastpix_get_upload_status'.
  * type=read; capability: mod/fastpix:uploadmedia (per ADR-012).
  * No sesskey required (read-only endpoint, idempotent, CSRF-safe).
@@ -45,7 +42,7 @@ namespace local_fastpix\external;
 class get_upload_status extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     */    public static function execute_parameters(): \core_external\external_function_parameters {
+     **/    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,
@@ -93,7 +90,7 @@ public static function execute(int $sessionid): array {
 
     /**
      * Web service return spec.
-     */    public static function execute_returns(): \core_external\external_single_structure {
+     **/    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,

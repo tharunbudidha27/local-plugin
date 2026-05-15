@@ -25,13 +25,11 @@ namespace local_fastpix\external;
 
 /**
  * Admin "Test Connection" web service.
- *
  * Wraps gateway::health_probe() (the existing read-only probe used by the
  * scheduled-task suite + the public /health.php endpoint) so the admin
  * settings page can drive it via AJAX on demand. Returns latency and a
  * human-readable error so the operator immediately knows whether the
  * configured credentials reach FastPix.
- *
  * Capability: local/fastpix:configurecredentials (Path A per ADR-014 +
  * v1.0 review M1 finding).
  *
@@ -42,7 +40,7 @@ namespace local_fastpix\external;
 class test_connection extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     */    public static function execute_parameters(): \core_external\external_function_parameters {
+     **/    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([]);
 }
 
@@ -80,7 +78,7 @@ public static function execute(): array {
 
     /**
      * Web service return spec.
-     */    public static function execute_returns(): \core_external\external_single_structure {
+     **/    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'success' => new \core_external\external_value(
                 PARAM_BOOL,

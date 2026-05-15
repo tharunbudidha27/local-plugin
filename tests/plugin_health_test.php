@@ -18,12 +18,10 @@ namespace local_fastpix;
 
 /**
  * Production-readiness static checks for local_fastpix.
- *
  * Stand-in for moodle-plugin-ci, which cannot be installed in the
  * dev-docker stack used to develop this plugin (no composer in the
  * webserver container). Covers the high-value checks moodle-plugin-ci
  * would otherwise enforce:
- *
  *   1. No debugging artefacts (var_dump, print_r, dd) in production source.
  *   2. No `composer.json` (rule M12 — Moodle Plugins Directory disallows
  *      runtime Composer dependencies).
@@ -32,7 +30,6 @@ namespace local_fastpix;
  *   5. Every classname referenced in db/services.php exists.
  *   6. Every classname referenced in db/tasks.php exists.
  *   7. Every callback referenced in db/hooks.php exists.
- *
  * Each check is a separate test so a failure points at a single rule.
  *
  * @package    local_fastpix
@@ -45,7 +42,7 @@ final class plugin_health_test extends \advanced_testcase {
 
     /**
      * Helper: plugin root.
-     */    private function plugin_root(): string {
+     **/    private function plugin_root(): string {
         $root = realpath(__DIR__ . self::ROOT_RELATIVE);
         $this->assertNotFalse($root, 'plugin root not resolvable');
         return $root;
@@ -278,10 +275,13 @@ public function test_db_hooks_callbacks_resolve(): void {
 
     /**
      * Load a Moodle db/*.php definition file and return the named array.
-     *
      * Each file declares ONE variable (e.g. $functions, $tasks, $callbacks)
      * which is captured and returned. Anonymous-scope require() ensures we
      * don't pollute test state with the loaded variable.
+     *
+     * @param string $filename
+     * @param string $varname
+     * @return array
      */
 private function load_db_array(string $filename, string $varname): array {
     $path = $this->plugin_root() . '/db/' . $filename;

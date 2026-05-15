@@ -36,7 +36,7 @@ final class webhook_event_pruner_test extends \advanced_testcase {
 
     /**
      * Helper: insert event.
-     */    private function insert_event(int $receivedat, string $status = 'processed'): int {
+     **/    private function insert_event(int $receivedat, string $status = 'processed'): int {
         global $DB;
         return (int)$DB->insert_record(self::TABLE, (object)[
             'provider_event_id'     => 'evt-' . random_string(8),

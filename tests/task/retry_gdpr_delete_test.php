@@ -18,7 +18,6 @@ namespace local_fastpix\task;
 
 /**
  * Boundary test for the GDPR-delete retry cap (T3.5).
- *
  * The retry task increments gdpr_delete_attempts on each run. After
  * MAX_ATTEMPTS (10) the row is no longer selected by the task — a
  * stuck-at-cap row signals to ops that something is wrong on the FastPix
@@ -47,7 +46,7 @@ final class retry_gdpr_delete_test extends \advanced_testcase {
 
     /**
      * Helper: inject failing gateway.
-     */    private function inject_failing_gateway(): void {
+     **/    private function inject_failing_gateway(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('delete_media')
             ->willThrowException(new \local_fastpix\exception\gateway_unavailable('500:simulated'));
@@ -60,7 +59,7 @@ final class retry_gdpr_delete_test extends \advanced_testcase {
 
     /**
      * Helper: insert pending asset.
-     */    private function insert_pending_asset(int $attempts = 0): \stdClass {
+     **/    private function insert_pending_asset(int $attempts = 0): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[

@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the feature flag service.
  *
  * @covers \local_fastpix\service\feature_flag_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later

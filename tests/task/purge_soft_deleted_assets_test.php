@@ -20,13 +20,9 @@ use local_fastpix\util\cache_keys;
 
 /**
  * Boundary test for the 7-day soft-delete hard-purge (rule W10).
-
  *
-
  * @package    local_fastpix
-
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
-
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class purge_soft_deleted_assets_test extends \advanced_testcase {
@@ -49,7 +45,7 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     */    private function insert_asset(?int $deletedat, ?string $playbackid = null): \stdClass {
+     **/    private function insert_asset(?int $deletedat, ?string $playbackid = null): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[
@@ -77,7 +73,7 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
 
     /**
      * Helper: insert track.
-     */    private function insert_track(int $assetid): int {
+     **/    private function insert_track(int $assetid): int {
         global $DB;
         return (int)$DB->insert_record(self::TRACK_TABLE, (object)[
             'asset_id'     => $assetid,
@@ -90,7 +86,7 @@ final class purge_soft_deleted_assets_test extends \advanced_testcase {
 
     /**
      * Helper: run task.
-     */    private function run_task(): void {
+     **/    private function run_task(): void {
         ob_start();
         (new purge_soft_deleted_assets())->execute();
         ob_end_clean();

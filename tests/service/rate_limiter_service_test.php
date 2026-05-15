@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the rate limiter service.
  *
  * @covers \local_fastpix\service\rate_limiter_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -40,7 +39,7 @@ final class rate_limiter_service_test extends \advanced_testcase {
 
     /**
      * Helper: bucket key.
-     */    private function bucket_key(string $ip): string {
+     **/    private function bucket_key(string $ip): string {
         return 'rl_' . substr(hash('sha256', $ip), 0, 32);
 }
 

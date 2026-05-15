@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the playback service.
  *
  * @covers \local_fastpix\service\playback_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -37,7 +36,7 @@ final class playback_service_test extends \advanced_testcase {
 
     /**
      * Helper: bootstrap signing key.
-     */    private function bootstrap_signing_key(): void {
+     **/    private function bootstrap_signing_key(): void {
         // The fastest path: generate an RSA keypair in-process, store via.
         // Config so jwt_signing_service can mint without a gateway call.
         $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
@@ -48,7 +47,7 @@ final class playback_service_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     */    private function insert_asset(array $overrides = []): \stdClass {
+     **/    private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
         $row = (object)array_merge([

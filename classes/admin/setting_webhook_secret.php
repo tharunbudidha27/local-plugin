@@ -25,11 +25,9 @@ namespace local_fastpix\admin;
 
 /**
  * Webhook-secret admin setting that performs rotation as a save side-effect.
- *
  * FastPix generates the signing secret on its side and the admin pastes it
  * into Moodle. Pasting a NEW value (different from the existing
  * webhook_secret_current) is treated as a rotation:
- *
  *   1. Validate length: empty allowed (admin disabling); >= 32 chars
  *      otherwise. Reject with a clear error message on too-short input.
  *   2. Persist the new value via the parent
@@ -39,17 +37,14 @@ namespace local_fastpix\admin;
  *        - webhook_secret_previous = old current value
  *        - webhook_secret_rotated_at = time()
  *        - fire \local_fastpix\event\webhook_secret_rotated for audit
- *
  *   The verifier honors the previous secret for ROTATION_WINDOW (1800s),
  *   so admins have a 30-minute overlap window for FastPix-side
  *   propagation if they're updating the secret in both places near
  *   simultaneously.
- *
  * Errors during the audit-event trigger MUST NOT roll back the save -
  * that would leave the admin with a confusing partial state. The catch
  * swallows audit failures; ops will see the missing event but the
  * persisted state is correct.
- *
  * Extends \admin_setting_configtext (NOT \admin_setting_configpasswordunmask)
  * because the passwordunmask widget depends on a JS-driven affordance that
  * is unreliable in some Moodle / theme combinations. The webhook secret is
@@ -63,11 +58,11 @@ namespace local_fastpix\admin;
 class setting_webhook_secret extends \admin_setting_configtext {
     /**
      * Minimum acceptable length, mirroring verifier::MIN_SECRET_BYTES.
-     */    private const MIN_LEN = 32;
+     **/    private const MIN_LEN = 32;
 
     /**
      * Write setting.
-     */    public function write_setting($data) {
+     **/    public function write_setting($data) {
         $newvalue = is_string($data) ? trim($data) : '';
 
         if ($newvalue !== '' && strlen($newvalue) < self::MIN_LEN) {

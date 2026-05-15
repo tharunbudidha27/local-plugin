@@ -33,7 +33,7 @@ namespace local_fastpix\exception;
 class rate_limit_exceeded extends \moodle_exception {
     /**
      * Constructor.
-     */    public function __construct(string $context = '') {
+     **/    public function __construct(string $context = '') {
         parent::__construct('rate_limit_exceeded', 'local_fastpix', '', $context);
 }
 }

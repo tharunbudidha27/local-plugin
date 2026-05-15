@@ -20,7 +20,6 @@ namespace local_fastpix\webhook;
  * Tests for the webhook verifier.
  *
  * @covers \local_fastpix\webhook\verifier
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -49,7 +48,7 @@ final class verifier_test extends \advanced_testcase {
 
     /**
      * Helper: configure current.
-     */    private function configure_current(): void {
+     **/    private function configure_current(): void {
         set_config('webhook_secret_current', self::CURRENT, 'local_fastpix');
         set_config('webhook_secret_previous', '', 'local_fastpix');
         set_config('webhook_secret_rotated_at', 0, 'local_fastpix');
@@ -57,7 +56,7 @@ final class verifier_test extends \advanced_testcase {
 
     /**
      * Helper: sign.
-     */    private function sign(string $body, string $secret): string {
+     **/    private function sign(string $body, string $secret): string {
         return hash_hmac('sha256', $body, $secret);
 }
 

@@ -20,7 +20,6 @@ namespace local_fastpix\util;
  * Tests for the cache_keys utility.
  *
  * @covers \local_fastpix\util\cache_keys
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later

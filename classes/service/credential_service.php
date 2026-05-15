@@ -39,24 +39,26 @@ class credential_service {
 
     /**
      * Constructor.
-     */    private function __construct() {
+     **/    private function __construct() {
 }
 
     /**
      * Singleton accessor.
-     */    public static function instance(): self {
+     **/    public static function instance(): self {
         return self::$instance ??= new self();
 }
 
     /**
      * Reset the singleton (used by tests).
-     */    public static function reset(): void {
+     **/    public static function reset(): void {
         self::$instance = null;
 }
 
     /**
      * DI seam for tests — inject a mocked gateway. Production code uses
      * \local_fastpix\api\gateway::instance() lazily.
+     *
+     * @param \local_fastpix\api\gateway $gateway
      */
 public function set_gateway(\local_fastpix\api\gateway $gateway): void {
     $this->gateway = $gateway;
@@ -64,7 +66,7 @@ public function set_gateway(\local_fastpix\api\gateway $gateway): void {
 
     /**
      * Apikey.
-     */    public function apikey(): string {
+     **/    public function apikey(): string {
         $value = (string)get_config('local_fastpix', 'apikey');
     if ($value === '') {
         throw new \moodle_exception(
@@ -79,7 +81,7 @@ public function set_gateway(\local_fastpix\api\gateway $gateway): void {
 
     /**
      * Apisecret.
-     */    public function apisecret(): string {
+     **/    public function apisecret(): string {
         $value = (string)get_config('local_fastpix', 'apisecret');
     if ($value === '') {
         throw new \moodle_exception(
@@ -156,10 +158,11 @@ public function ensure_signing_key(): void {
         set_config('signing_key_created_at', time(), 'local_fastpix');
 
         // Log only the kid; the private key never appears in any log line (S2).
-        debugging(json_encode([
+        // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
+        error_log(json_encode([
             'event' => 'credential.signing_key_bootstrapped',
             'id'    => $newkid,
-        ]), DEBUG_DEVELOPER);
+        ]));
     } finally {
         // Release MUST run even if create_signing_key threw, so the.
         // Next worker can retry instead of waiting 30s for stale lock.

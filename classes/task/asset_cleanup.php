@@ -42,13 +42,13 @@ class asset_cleanup extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_asset_cleanup', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $cutoff = time() - self::RETENTION_SECONDS;
@@ -88,7 +88,7 @@ class asset_cleanup extends \core\task\scheduled_task {
 
     /**
      * Invalidate cache.
-     */    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+     **/    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = \cache::make('local_fastpix', 'asset');
     if ($fastpixid !== '') {
         $cache->delete('fp_' . substr(hash('sha256', $fastpixid), 0, 32));

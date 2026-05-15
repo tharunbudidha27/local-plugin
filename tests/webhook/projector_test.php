@@ -20,7 +20,6 @@ namespace local_fastpix\webhook;
  * Tests for the webhook projector.
  *
  * @covers \local_fastpix\webhook\projector
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -37,7 +36,7 @@ final class projector_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     */    private function insert_asset(array $overrides = []): \stdClass {
+     **/    private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
         $row = (object)array_merge([
@@ -64,7 +63,7 @@ final class projector_test extends \advanced_testcase {
 
     /**
      * Helper: build event.
-     */    private function build_event(string $type, string $fastpixid, array $overrides = []): \stdClass {
+     **/    private function build_event(string $type, string $fastpixid, array $overrides = []): \stdClass {
         $defaults = [
             'id'         => 'evt-' . random_string(8),
             'type'       => $type,
@@ -80,6 +79,12 @@ final class projector_test extends \advanced_testcase {
 
     /**
      * Helper: ready event.
+     *
+     * @param string $fastpixid
+     * @param array $playbackids
+     * @param array $extradata
+     * @param array $overrides
+     * @return \stdClass
      */
 private function ready_event(string $fastpixid, array $playbackids, array $extradata = [], array $overrides = []): \stdClass {
     $data = (object)array_merge(['playbackIds' => $playbackids], $extradata);
@@ -88,7 +93,7 @@ private function ready_event(string $fastpixid, array $playbackids, array $extra
 
     /**
      * Helper: reflect cache key fastpix.
-     */    private function reflect_cache_key_fastpix(string $fastpixid): string {
+     **/    private function reflect_cache_key_fastpix(string $fastpixid): string {
         $r = new \ReflectionClass(projector::class);
         $m = $r->getMethod('cache_key_fastpix');
         $m->setAccessible(true);
@@ -97,7 +102,7 @@ private function ready_event(string $fastpixid, array $playbackids, array $extra
 
     /**
      * Helper: reflect cache key playback.
-     */    private function reflect_cache_key_playback(string $playbackid): string {
+     **/    private function reflect_cache_key_playback(string $playbackid): string {
         $r = new \ReflectionClass(projector::class);
         $m = $r->getMethod('cache_key_playback');
         $m->setAccessible(true);

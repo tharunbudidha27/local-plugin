@@ -58,12 +58,13 @@ if ($rawbody === false) {
 // Are NOT real events and are NOT inserted into the ledger.
 $trimmedbody = trim($rawbody);
 if ($trimmedbody === '' || $trimmedbody === '{}') {
-    debugging(json_encode([
+    // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
+    error_log(json_encode([
         'event'       => 'webhook.validation_ping',
         'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
         'time'        => time(),
         'shape'       => $trimmedbody === '' ? 'empty' : 'curly_braces',
-    ]), DEBUG_DEVELOPER);
+    ]));
     http_response_code(200);
     die();
 }

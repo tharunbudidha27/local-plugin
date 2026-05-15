@@ -25,10 +25,8 @@ namespace local_fastpix\task;
 
 /**
  * Adhoc task: project a single verified webhook event onto its asset row.
- *
  * Enqueued by webhook.php after signature verification + ledger insert.
  * Custom data: ['provider_event_id' => <FastPix event UUID>].
- *
  * Failures (other than malformed-at-enqueue) propagate so Moodle's adhoc-task
  * retry/backoff mechanism reschedules — including lock_acquisition_failed.
  *
@@ -42,7 +40,7 @@ class process_webhook extends \core\task\adhoc_task {
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $data = $this->get_custom_data();

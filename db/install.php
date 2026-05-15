@@ -24,12 +24,10 @@
 
 /**
  * One-time install bootstrap for local_fastpix.
- *
  * Seeds empty webhook-secret rows (FastPix generates the actual secret;
  * admin pastes it into the settings page), seeds the user-hash salt at
  * the entropy floor required by rule S9 (64 chars), and seeds default
  * feature-flag configuration.
- *
  * The local RS256 signing key is NOT minted here. credential_service::
  * ensure_signing_key() bootstraps it lazily on first use, after the admin
  * has saved API credentials.

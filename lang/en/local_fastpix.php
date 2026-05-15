@@ -23,6 +23,8 @@
  */
 defined('MOODLE_INTERNAL') || die();
 
+// phpcs:disable moodle.Files.LangFilesOrdering
+
 $string['pluginname'] = 'FastPix';
 
 // Exception strings (constructor $context interpolated as {$a}).

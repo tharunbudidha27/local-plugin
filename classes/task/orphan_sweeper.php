@@ -40,13 +40,13 @@ class orphan_sweeper extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_orphan_sweeper', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $now = time();

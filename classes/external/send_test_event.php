@@ -25,11 +25,9 @@ namespace local_fastpix\external;
 
 /**
  * Admin "Send Test Event" web service.
- *
  * Fires a synthetic FastPix-shaped video.media.created event into the
  * local processor (verifier → ledger insert → adhoc-task enqueue) so the
  * admin can validate end-to-end webhook plumbing without touching FastPix.
- *
  * Capability: local/fastpix:configurecredentials.
  *
  * @package    local_fastpix
@@ -39,7 +37,7 @@ namespace local_fastpix\external;
 class send_test_event extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     */    public static function execute_parameters(): \core_external\external_function_parameters {
+     **/    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([]);
 }
 
@@ -114,7 +112,7 @@ public static function execute(): array {
 
     /**
      * Web service return spec.
-     */    public static function execute_returns(): \core_external\external_single_structure {
+     **/    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'success' => new \core_external\external_value(
                 PARAM_BOOL,

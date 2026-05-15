@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the asset service.
  *
  * @covers \local_fastpix\service\asset_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -43,6 +42,8 @@ final class asset_service_test extends \advanced_testcase {
 
     /**
      * Inject a mock into the gateway singleton's static $instance slot.
+     *
+     * @param mixed $mock
      */
     private function inject_gateway_mock($mock): void {
         $reflection = new \ReflectionClass(\local_fastpix\api\gateway::class);
@@ -53,7 +54,7 @@ final class asset_service_test extends \advanced_testcase {
 
     /**
      * Helper: insert asset.
-     */    private function insert_asset(array $overrides = []): \stdClass {
+     **/    private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
         $row = (object)array_merge([
@@ -80,7 +81,7 @@ final class asset_service_test extends \advanced_testcase {
 
     /**
      * Helper: gateway response.
-     */    private function gateway_response(array $overrides = []): \stdClass {
+     **/    private function gateway_response(array $overrides = []): \stdClass {
         return (object)['data' => (object)array_merge([
             'id'           => 'media-remote-1',
             'title'        => 'Remote title',

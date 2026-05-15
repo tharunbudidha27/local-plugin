@@ -30,7 +30,6 @@ use local_fastpix\service\credential_service;
 
 /**
  * FastPix HTTP gateway.
- *
  * The single trusted boundary between local_fastpix and api.fastpix.io.
  * Owns retry, circuit breaker, idempotency keys, two timeout profiles,
  * structured logging, and credential injection. Rule A2: no other class
@@ -67,7 +66,7 @@ class gateway {
 
     /**
      * Max response body length the gateway will decode (defensive).
-     */    private const MAX_RESPONSE_BYTES = 5242880; // 5 MiB.
+     **/    private const MAX_RESPONSE_BYTES = 5242880; // 5 MiB.
 
     /** @var ?self $instance */
     /** @var mixed */
@@ -75,7 +74,7 @@ class gateway {
 
     /**
      * Constructor.
-     */    private function __construct(
+     **/    private function __construct(
     /** @var mixed Http. */
     private \core\http_client $http,
     /** @var mixed Breakercache. */
@@ -87,7 +86,7 @@ class gateway {
 
     /**
      * Singleton accessor.
-     */    public static function instance(): self {
+     **/    public static function instance(): self {
     if (self::$instance === null) {
         self::$instance = new self(
             new \core\http_client(),
@@ -100,7 +99,7 @@ class gateway {
 
     /**
      * Reset the singleton (used by tests).
-     */    public static function reset(): void {
+     **/    public static function reset(): void {
         self::$instance = null;
 }
 
@@ -108,6 +107,13 @@ class gateway {
 
     /**
      * POST /v1/on-demand/upload — create a direct file-upload session.
+     *
+     * @param string $ownerhash
+     * @param array $metadata
+     * @param string $accesspolicy
+     * @param ?string $drmconfigid
+     * @param string $maxresolution
+     * @return \stdClass
      */
 public function input_video_direct_upload(
     string $ownerhash,
@@ -139,6 +145,14 @@ public function input_video_direct_upload(
 
     /**
      * POST /v1/on-demand — create a media asset from a remote URL.
+     *
+     * @param string $sourceurl
+     * @param string $ownerhash
+     * @param array $metadata
+     * @param string $accesspolicy
+     * @param ?string $drmconfigid
+     * @param string $maxresolution
+     * @return \stdClass
      */
 public function media_create_from_url(
     string $sourceurl,
@@ -170,6 +184,9 @@ public function media_create_from_url(
     /**
      * GET /v1/on-demand/{mediaId} — hot path. PROFILE_HOT (3s/3s).
      * 404 → gateway_not_found IMMEDIATELY, no retry.
+     *
+     * @param string $fastpixid
+     * @return \stdClass
      */
 public function get_media(string $fastpixid): \stdClass {
     return $this->request(
@@ -183,6 +200,8 @@ public function get_media(string $fastpixid): \stdClass {
 
     /**
      * DELETE /v1/on-demand/{mediaId}. 404 returns silently (idempotent).
+     *
+     * @param string $fastpixid
      */
 public function delete_media(string $fastpixid): void {
     $this->request(
@@ -197,6 +216,8 @@ public function delete_media(string $fastpixid): void {
     /**
      * POST /v1/iam/signing-keys — provision a new RSA signing key.
      * Returns object with id (kid), privateKey (base64 PEM), createdAt.
+     *
+     * @return \stdClass
      */
 public function create_signing_key(): \stdClass {
     return $this->request(
@@ -210,6 +231,8 @@ public function create_signing_key(): \stdClass {
 
     /**
      * DELETE /v1/iam/signing-keys/{kid}. 404 silent.
+     *
+     * @param string $kid
      */
 public function delete_signing_key(string $kid): void {
     $this->request(
@@ -223,6 +246,8 @@ public function delete_signing_key(string $kid): void {
 
     /**
      * Health probe. Returns false on any failure. NEVER throws.
+     *
+     * @return bool
      */
 public function health_probe(): bool {
     try {
@@ -246,7 +271,7 @@ public function health_probe(): bool {
 
     /**
      * Request.
-     */    private function request(
+     **/    private function request(
     string $method,
     string $path,
     ?array $body,
@@ -359,6 +384,9 @@ public function health_probe(): bool {
      * gateway_not_found exceptions. The body is NEVER passed to error_log —
      * only carried on the exception so callers can surface it in their own
      * logging or admin UI. Cost ~30 min debugging on 2026-05-04 (REVIEW T2.2).
+     *
+     * @param mixed $response
+     * @return string
      */
 private function body_snippet($response): string {
     $raw = (string)$response->getBody();
@@ -370,7 +398,7 @@ private function body_snippet($response): string {
 
     /**
      * Whether retryable.
-     */    private function is_retryable(int $status): bool {
+     **/    private function is_retryable(int $status): bool {
         // 408 (Request Timeout) is transient under sustained load; retry per.
         // FastPix docs.
         return in_array($status, [408, 429, 500, 502, 503, 504], true);
@@ -378,7 +406,7 @@ private function body_snippet($response): string {
 
     /**
      * Parse retry after.
-     */    private function parse_retry_after($response): int {
+     **/    private function parse_retry_after($response): int {
         $header = $response->getHeaderLine('Retry-After');
     if ($header === '' || !ctype_digit(trim($header))) {
         return 1;
@@ -388,7 +416,7 @@ private function body_snippet($response): string {
 
     /**
      * Decode body.
-     */    private function decode_body($response): \stdClass {
+     **/    private function decode_body($response): \stdClass {
         // Defensive bound against malicious upstream returning unbounded bytes.
         $advertised = (int)$response->getHeaderLine('Content-Length');
     if ($advertised > self::MAX_RESPONSE_BYTES) {
@@ -410,7 +438,7 @@ private function body_snippet($response): string {
 
     /**
      * Build headers.
-     */    private function build_headers(?string $idempotencykey, ?string $requestid = null): array {
+     **/    private function build_headers(?string $idempotencykey, ?string $requestid = null): array {
         $headers = [
             'Accept'     => 'application/json',
             'User-Agent' => 'local_fastpix/' . (string)get_config('local_fastpix', 'version'),
@@ -426,6 +454,8 @@ private function body_snippet($response): string {
 
     /**
      * Extract the host portion of base_url() for structured logging.
+     *
+     * @return string
      */
 private function host_from_base(): string {
     $host = parse_url($this->base_url(), PHP_URL_HOST);
@@ -434,14 +464,14 @@ private function host_from_base(): string {
 
     /**
      * Idempotency key.
-     */    private function idempotency_key(string $operation, string $ownerhash, ?array $body): string {
+     **/    private function idempotency_key(string $operation, string $ownerhash, ?array $body): string {
         $payloadhash = $body !== null ? hash('sha256', json_encode($body)) : '-';
         return hash('sha256', "{$operation}:{$ownerhash}:{$payloadhash}");
 }
 
     /**
      * Endpoint key.
-     */    private function endpoint_key(string $method, string $path): string {
+     **/    private function endpoint_key(string $method, string $path): string {
         // MUC area 'circuit_breaker' is declared simplekeys=true, so the key must be.
         // Alphanumeric only. SHA-256 prefix (32 hex chars) gives 128 bits of collision.
         // Resistance — replacing CRC32 (32-bit) per REVIEW-2026-05-04 §S-1.
@@ -450,7 +480,7 @@ private function host_from_base(): string {
 
     /**
      * Base url.
-     */    private function base_url(): string {
+     **/    private function base_url(): string {
         $configured = (string)get_config('local_fastpix', 'fastpix_base_url');
         return $configured !== '' ? rtrim($configured, '/') : self::DEFAULT_BASE_URL;
 }
@@ -459,7 +489,7 @@ private function host_from_base(): string {
 
     /**
      * Breaker is open.
-     */    private function breaker_is_open(string $key): bool {
+     **/    private function breaker_is_open(string $key): bool {
         $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         return false;
@@ -469,7 +499,7 @@ private function host_from_base(): string {
 
     /**
      * Breaker record failure.
-     */    private function breaker_record_failure(string $key): void {
+     **/    private function breaker_record_failure(string $key): void {
         $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         $state = ['failures' => 0, 'open_until' => 0];
@@ -483,7 +513,7 @@ private function host_from_base(): string {
 
     /**
      * Breaker record success.
-     */    private function breaker_record_success(string $key): void {
+     **/    private function breaker_record_success(string $key): void {
         $this->breakercache->delete($key);
 }
 
@@ -491,7 +521,7 @@ private function host_from_base(): string {
 
     /**
      * Log call.
-     */    private function log_call(
+     **/    private function log_call(
     string $endpointkey,
     int $latencyms,
     int $status,
@@ -509,7 +539,8 @@ private function host_from_base(): string {
 
         $pathlogged = $path === '' ? '' : strtok($path, '?');
 
-        debugging(json_encode([
+        // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
+        error_log(json_encode([
             'event'           => 'gateway.call',
             'request_id'      => $requestid,
             'method'          => $method,
@@ -521,6 +552,6 @@ private function host_from_base(): string {
             'attempt'         => $attempt,
             'circuit_state'   => $circuitstate,
             'timeout_profile' => $profilename,
-        ]), DEBUG_DEVELOPER);
+        ]));
 }
 }

@@ -23,13 +23,8 @@ use Firebase\JWT\Key;
  * Tests for the JWT signing service.
  *
  * @covers \local_fastpix\service\jwt_signing_service
-
- *
-
  * @package    local_fastpix
-
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
-
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class jwt_signing_service_test extends \advanced_testcase {
@@ -62,7 +57,7 @@ final class jwt_signing_service_test extends \advanced_testcase {
 
     /**
      * Helper: decode segments.
-     */    private function decode_segments(string $jwt): array {
+     **/    private function decode_segments(string $jwt): array {
         $parts = explode('.', $jwt);
         $this->assertCount(3, $parts, 'JWT must have three segments');
         $b64urldecode = static fn(string $s): string =>

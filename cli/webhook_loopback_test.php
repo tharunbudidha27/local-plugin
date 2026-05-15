@@ -16,22 +16,18 @@
 
 /**
  * Webhook end-to-end loopback test (T3.2).
- *
  * Operator-facing CLI that fires synthetic, properly-signed FastPix-shaped
  * events at the local webhook endpoint and verifies the full ingestion
  * path (verifier → ledger insert → adhoc task → projector → asset row).
- *
  * Use cases:
  *   - Smoke test after deploy: did the webhook URL come up correctly?
  *   - Reproduce ingestion bugs offline without FastPix sandbox creds.
  *   - DoD §7 partial coverage: shoot a small flood with duplicates +
  *     out-of-order events and assert idempotency.
- *
  * Usage (from Moodle root):
  *   php local/fastpix/cli/webhook_loopback_test.php
  *   php local/fastpix/cli/webhook_loopback_test.php --count=100 --dup=0.5
  *   php local/fastpix/cli/webhook_loopback_test.php --webhook-url=https://your.example/local/fastpix/webhook.php
- *
  * Exits 0 on success, non-zero with a diagnostic on any failure.
  *
  * @package    local_fastpix

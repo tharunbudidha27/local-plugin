@@ -25,7 +25,6 @@ namespace local_fastpix\task;
 
 /**
  * Daily prune of processed webhook ledger rows older than 90 days.
- *
  * Per rule W9, the ledger retains 90 days of processed events for
  * forensics and replay. Only rows with status='processed' are eligible —
  * anything still pending or marked malformed is preserved indefinitely
@@ -44,13 +43,13 @@ class webhook_event_pruner extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_webhook_event_pruner', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $cutoff = time() - self::RETENTION_SECONDS;

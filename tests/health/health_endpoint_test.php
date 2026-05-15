@@ -18,7 +18,6 @@ namespace local_fastpix\health;
 
 /**
  * Tests for the public health endpoint runner (C2).
- *
  * The thin shim at health.php is not directly testable (procedural script
  * that emits headers + dies). Tests exercise \local_fastpix\health\runner
  * with the gateway and rate-limiter as injectable dependencies via the
@@ -45,7 +44,7 @@ final class health_endpoint_test extends \advanced_testcase {
 
     /**
      * Helper: inject gateway mock.
-     */    private function inject_gateway_mock($mock): void {
+     **/    private function inject_gateway_mock($mock): void {
         $reflection = new \ReflectionClass(\local_fastpix\api\gateway::class);
         $prop = $reflection->getProperty('instance');
         $prop->setAccessible(true);

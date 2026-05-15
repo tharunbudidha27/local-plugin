@@ -45,17 +45,18 @@ class projector {
 
     /**
      * Constructor.
-     */    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
+     **/    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
         $this->lockfactory = $lockfactory
             ?? \core\lock\lock_config::get_lock_factory(self::LOCK_FACTORY);
 }
 
     /**
      * Project a verified webhook event onto the asset row.
-     *
      * Acquires a per-asset lock to serialize concurrent webhooks for the same
      * asset, applies total-ordering with lex tiebreak on event_id, and
      * invalidates the asset cache (both keys) inside the lock.
+     *
+     * @param \stdClass $event
      */
 public function project(\stdClass $event): void {
     $objecttype = (string)($event->object->type ?? '');
@@ -82,7 +83,7 @@ public function project(\stdClass $event): void {
 
     /**
      * Project inside lock.
-     */    private function project_inside_lock(\stdClass $event, string $fastpixid): void {
+     **/    private function project_inside_lock(\stdClass $event, string $fastpixid): void {
         global $DB;
 
         $row = $DB->get_record(self::TABLE, ['fastpix_id' => $fastpixid]);
@@ -138,20 +139,21 @@ public function project(\stdClass $event): void {
 
     /**
      * Whether media object.
-     */    private function is_media_object(string $objecttype): bool {
+     **/    private function is_media_object(string $objecttype): bool {
         return in_array($objecttype, ['video.media', 'media'], true);
 }
 
     /**
      * Resolve the event's wall-clock timestamp.
-     *
      * Synthetic test fixtures use `occurredAt` (epoch int).
      * Real FastPix deliveries use `createdAt` (ISO 8601 with nanoseconds,
      * e.g. "2026-05-11T20:42:16.361817248Z"). PHP's strtotime() rejects
      * nanosecond precision on some builds and returns false; we strip
      * the fractional component before parsing to be safe.
-     *
      * Returns 0 only when no parseable timestamp is present.
+     *
+     * @param \stdClass $event
+     * @return int
      */
 private function event_timestamp(\stdClass $event): int {
     if (isset($event->occurredAt) && is_numeric($event->occurredAt)) {
@@ -167,6 +169,10 @@ private function event_timestamp(\stdClass $event): int {
 
     /**
      * Total ordering with lex tiebreak on event_id.
+     *
+     * @param \stdClass $event
+     * @param \stdClass $row
+     * @return bool
      */
 private function is_out_of_order(\stdClass $event, \stdClass $row): bool {
     if ($row->last_event_at === null) {
@@ -189,6 +195,10 @@ private function is_out_of_order(\stdClass $event, \stdClass $row): bool {
     /**
      * Apply the event's data onto $row. Returns true if applied, false if the
      * event type was unhandled (caller still records last_event_* on truthy).
+     *
+     * @param \stdClass $event
+     * @param \stdClass $row
+     * @return bool
      */
 private function handle_event(\stdClass $event, \stdClass $row): bool {
     $type = (string)($event->type ?? '');
@@ -253,7 +263,7 @@ private function handle_event(\stdClass $event, \stdClass $row): bool {
 
     /**
      * Insert from created event.
-     */    private function insert_from_created_event(\stdClass $event, string $fastpixid): \stdClass {
+     **/    private function insert_from_created_event(\stdClass $event, string $fastpixid): \stdClass {
         global $DB;
 
         $data = $event->data ?? new \stdClass();
@@ -288,6 +298,9 @@ private function handle_event(\stdClass $event, \stdClass $row): bool {
      * playbackIds. FastPix's real video.media.created and video.media.ready
      * payloads carry playbackIds with accessPolicy "public" by default
      * (observed 2026-05-08).
+     *
+     * @param \stdClass $data
+     * @param \stdClass $row
      */
 private function apply_first_playback_id(\stdClass $data, \stdClass $row): void {
     if (empty($data->playbackIds) || !is_array($data->playbackIds)) {
@@ -312,6 +325,9 @@ private function apply_first_playback_id(\stdClass $data, \stdClass $row): void 
      * numeric(10,3); a raw "HH:MM:SS" write throws dml_write_exception.
      * Returns null when value is missing/unparseable so caller leaves the
      * existing column value alone.
+     *
+     * @param mixed $value
+     * @return ?float
      */
 private function parse_duration($value): ?float {
     if ($value === null || $value === '') {
@@ -331,6 +347,8 @@ private function parse_duration($value): ?float {
      * Link any matching upload_session row so consumers can navigate
      * session_id → fastpix_id → asset. Idempotent — only touches rows
      * whose fastpix_id is still null.
+     *
+     * @param string $fastpixid
      */
 private function link_upload_session(string $fastpixid): void {
     global $DB;
@@ -344,7 +362,7 @@ private function link_upload_session(string $fastpixid): void {
 
     /**
      * Count caption tracks.
-     */    private function count_caption_tracks(\stdClass $data): int {
+     **/    private function count_caption_tracks(\stdClass $data): int {
     if (empty($data->tracks) || !is_array($data->tracks)) {
         return 0;
     }
@@ -362,7 +380,7 @@ private function link_upload_session(string $fastpixid): void {
 
     /**
      * Invalidate cache.
-     */    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
+     **/    private function invalidate_cache(string $fastpixid, ?string $playbackid): void {
         $cache = \cache::make('local_fastpix', 'asset');
         $cache->delete(\local_fastpix\util\cache_keys::fastpix($fastpixid));
     if (!empty($playbackid)) {
@@ -374,6 +392,9 @@ private function link_upload_session(string $fastpixid): void {
      * Reflection seam for tests that verify the projector targets the same
      * keys as asset_service. Formula lives in
      * \local_fastpix\util\cache_keys.
+     *
+     * @param string $fastpixid
+     * @return string
      */
 private function cache_key_fastpix(string $fastpixid): string {
     return \local_fastpix\util\cache_keys::fastpix($fastpixid);
@@ -381,7 +402,7 @@ private function cache_key_fastpix(string $fastpixid): string {
 
     /**
      * Cache helper for key playback.
-     */    private function cache_key_playback(string $playbackid): string {
+     **/    private function cache_key_playback(string $playbackid): string {
         return \local_fastpix\util\cache_keys::playback($playbackid);
 }
 }

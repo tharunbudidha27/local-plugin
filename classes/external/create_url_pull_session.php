@@ -25,15 +25,12 @@ namespace local_fastpix\external;
 
 /**
  * External function: create a URL-pull ingest session against FastPix.
- *
  * FastPix downloads from the source URL on its own infrastructure rather
  * than the user uploading bytes directly. The signed upload_url returned
  * is empty (PARAM_RAW) — there is no GCS URL to PUT to.
- *
  * Per architecture doc §3.3 (URL pull) and §15.4 (upload service).
  * Per @upload-service agent: SSRF check happens in the service BEFORE
  * the gateway call. This endpoint does not duplicate the check.
- *
  * Registered in db/services.php as 'local_fastpix_create_url_pull_session'.
  * Capability: mod/fastpix:uploadmedia (per ADR-012, owned by mod_fastpix).
  *
@@ -44,7 +41,7 @@ namespace local_fastpix\external;
 class create_url_pull_session extends \core_external\external_api {
     /**
      * Web service parameter spec.
-     */    public static function execute_parameters(): \core_external\external_function_parameters {
+     **/    public static function execute_parameters(): \core_external\external_function_parameters {
         return new \core_external\external_function_parameters([
             'source_url' => new \core_external\external_value(
                 PARAM_URL,
@@ -97,7 +94,7 @@ public static function execute(string $sourceurl): array {
 
     /**
      * Web service return spec.
-     */    public static function execute_returns(): \core_external\external_single_structure {
+     **/    public static function execute_returns(): \core_external\external_single_structure {
         return new \core_external\external_single_structure([
             'session_id' => new \core_external\external_value(
                 PARAM_INT,

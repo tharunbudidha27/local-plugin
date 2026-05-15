@@ -25,11 +25,9 @@ namespace local_fastpix\health;
 
 /**
  * Health-endpoint logic, extracted for testability.
- *
  * The thin script `health.php` at the plugin root delegates here so unit
  * tests can exercise the rate-limit, probe, and error-recovery paths
  * without driving an HTTP request.
- *
  * NEVER throws. Any exception from the gateway, the rate limiter, or
  * anything downstream is converted to a 503 response. The endpoint must
  * not 500 — that would prevent ops from distinguishing a hard failure
@@ -42,7 +40,7 @@ namespace local_fastpix\health;
 class runner {
     /**
      * Rate-limit cap per IP per minute.
-     */    public const RATE_LIMIT_PER_MIN = 30;
+     **/    public const RATE_LIMIT_PER_MIN = 30;
 
     /**
      * Run the health check for one request.
@@ -82,6 +80,11 @@ class runner {
      * Response.
      *
      * @return array{http_code: int, body: array<string, mixed>}
+     * @param int $httpcode
+     * @param string $status
+     * @param ?bool $reachable
+     * @param int $latencyms
+     * @return array
      */
     private static function response(int $httpcode, string $status, ?bool $reachable, int $latencyms): array {
         return [

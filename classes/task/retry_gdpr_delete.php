@@ -26,14 +26,12 @@ namespace local_fastpix\task;
 /**
  * Scheduled task: retry FastPix-side deletion for soft-deleted assets where
  * the remote delete previously failed.
- *
  * Per architecture doc §16: local soft-delete is immediate; remote delete is
  * best-effort. When the remote call fails, gdpr_delete_pending_at is set
  * and this task retries on cron, incrementing gdpr_delete_attempts each
  * time. After MAX_ATTEMPTS the row stops being selected — a row stuck at
  * the cap signals a degraded state that ops must investigate; the local
  * soft-delete is still in effect, so users see no leakage.
- *
  * Per @tasks-cleanup guardrails: batched, time-boxed, idempotent, never
  * logs raw user IDs.
  *
@@ -57,13 +55,13 @@ class retry_gdpr_delete extends \core\task\scheduled_task {
 
     /**
      * Get name.
-     */    public function get_name(): string {
+     **/    public function get_name(): string {
         return get_string('task_retry_gdpr_delete', 'local_fastpix');
 }
 
     /**
      * Web service main entry point.
-     */    public function execute(): void {
+     **/    public function execute(): void {
         global $DB;
 
         $sql = "SELECT id, fastpix_id, gdpr_delete_pending_at, gdpr_delete_attempts

@@ -45,27 +45,30 @@ class verifier {
 
     /**
      * Constructor.
-     */    private function __construct() {
+     **/    private function __construct() {
 }
 
     /**
      * Singleton accessor.
-     */    public static function instance(): self {
+     **/    public static function instance(): self {
         return self::$instance ??= new self();
 }
 
     /**
      * Reset the singleton (used by tests).
-     */    public static function reset(): void {
+     **/    public static function reset(): void {
         self::$instance = null;
 }
 
     /**
      * Verify a FastPix webhook signature.
-     *
      * Returns true if the signature matches the current secret, or matches the
      * previous secret within the 30-minute rotation window. Returns false on
      * any failure — never throws (rule S7).
+     *
+     * @param string $rawbody
+     * @param string $signatureheader
+     * @return bool
      */
 public function verify(string $rawbody, string $signatureheader): bool {
     if (strlen($signatureheader) < 1 || strlen($rawbody) < 1) {
@@ -104,16 +107,19 @@ public function verify(string $rawbody, string $signatureheader): bool {
 
     /**
      * Compare the provided signature against the canonical FastPix shape:
-     *
      *   keyBytes = base64_decode(SECRET)
      *   sig      = base64_encode(hmac_sha256(keyBytes, body))
-     *
      * Empirically verified 2026-05-07 against the FastPix sandbox; matches
      * the Express reference verifier in FastPix's docs. Three legacy
      * fallbacks (raw-string secret, hex output, mixed) live behind
      * LOCAL_FASTPIX_DEBUG_VERIFIER so the test suite can drive synthetic
      * fixtures without enlarging the production attack surface.
      * Per rule S3, all compares use hash_equals.
+     *
+     * @param string $rawbody
+     * @param string $secret
+     * @param string $signatureheader
+     * @return bool
      */
 private function matches_either_format(string $rawbody, string $secret, string $signatureheader): bool {
     // FastPix canonical: secret is base64; output is base64.
@@ -150,19 +156,27 @@ private function matches_either_format(string $rawbody, string $secret, string $
      * Single structured log line on the short-secret rejection path.
      * Same JSON shape as gateway.call lines so ops can grep one log
      * stream. The secret value is NEVER included — only its length.
+     *
+     * @param string $slot
+     * @param int $length
      */
 private function log_short_secret(string $slot, int $length): void {
-    debugging(json_encode([
+    // phpcs:ignore moodle.PHP.ForbiddenFunctions.FoundWithAlternative
+    error_log(json_encode([
         'event'  => 'webhook.secret_too_short',
         'slot'   => $slot,
         'length' => $length,
         'min'    => self::MIN_SECRET_BYTES,
-    ]), DEBUG_DEVELOPER);
+    ]));
 }
 
     /**
      * Constant-time signature comparison. Wrapping hash_equals here makes
      * the static-analysis grep for forbidden comparisons (rule S3) trivial.
+     *
+     * @param string $expected
+     * @param string $provided
+     * @return bool
      */
 private function constant_time_compare(string $expected, string $provided): bool {
     return hash_equals($expected, $provided);

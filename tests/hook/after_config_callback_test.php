@@ -19,7 +19,6 @@ namespace local_fastpix\hook;
 /**
  * Regression test for the page-render hot path contract on
  * \local_fastpix\hook\after_config_callback.
- *
  * Pins the invariant: the handler MUST NOT make synchronous HTTP calls
  * or touch the gateway. Injecting a trip-wire gateway whose every method
  * throws guarantees that any future change to the handler that invokes

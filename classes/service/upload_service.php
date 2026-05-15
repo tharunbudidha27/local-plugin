@@ -46,19 +46,19 @@ class upload_service {
 
     /**
      * Singleton accessor.
-     */    public static function instance(): self {
+     **/    public static function instance(): self {
         return self::$instance ??= new self();
 }
 
     /**
      * Reset the singleton (used by tests).
-     */    public static function reset(): void {
+     **/    public static function reset(): void {
         self::$instance = null;
 }
 
     /**
      * Create file upload session.
-     */    public function create_file_upload_session(
+     **/    public function create_file_upload_session(
     int $userid,
     array $metadata,
     bool $drmrequired = false,
@@ -103,7 +103,7 @@ class upload_service {
 
     /**
      * Create url pull session.
-     */    public function create_url_pull_session(
+     **/    public function create_url_pull_session(
     int $userid,
     string $sourceurl,
     bool $drmrequired = false,
@@ -153,6 +153,10 @@ class upload_service {
      * Returns the cached session response if a non-expired row exists for the
      * supplied hash key; null otherwise. Caller still owns the cache->set on
      * the new session id after a fresh insert.
+     *
+     * @param \cache $cache
+     * @param string $hashkey
+     * @return ?\stdClass
      */
 private function dedup_hit(\cache $cache, string $hashkey): ?\stdClass {
     $existingid = $cache->get($hashkey);
@@ -172,6 +176,11 @@ private function dedup_hit(\cache $cache, string $hashkey): ?\stdClass {
      * fastpix_metadata bag attached to the gateway call.
      *
      * @return array{owner_hash:string,access_policy:string,max_resolution:string,drm_config_id:?string,fastpix_metadata:array<string,string>}
+     * @param int $userid
+     * @param bool $drmrequired
+     * @param ?string $accesspolicy
+     * @param ?string $maxresolution
+     * @return array
      */
 private function resolve_upload_params(
     int $userid,
@@ -201,7 +210,6 @@ private function resolve_upload_params(
 
     /**
      * Read-only lookup of an upload session, scoped to the calling user.
-     *
      * Per @security-compliance: ownership check (userid) is enforced in the
      * SQL clause to prevent horizontal privilege escalation. Callers with
      * the :uploadmedia capability can read THEIR sessions only, not others'.
@@ -233,14 +241,16 @@ public function get_status(int $sessionid, int $userid): \stdClass {
 
     /**
      * Resolve effective access_policy for an upload.
-     *
      *   1. drm_required=true     → 'drm' (explicit DRM intent always wins)
      *   2. caller-passed value   → caller's choice (per-call override)
      *   3. admin config default  → default_access_policy (set in settings)
      *   4. hard-coded fallback   → 'private' (defensive — fail closed)
-     *
      * Whitelist enforced: anything other than public/private/drm coming
      * from config or caller falls back to 'private'.
+     *
+     * @param bool $drmrequired
+     * @param ?string $callervalue
+     * @return string
      */
 private function resolve_access_policy(bool $drmrequired, ?string $callervalue): string {
     if ($drmrequired) {
@@ -259,10 +269,12 @@ private function resolve_access_policy(bool $drmrequired, ?string $callervalue):
 
     /**
      * Resolve effective max_resolution for an upload.
-     *
      *   1. caller-passed value   → caller's choice
      *   2. admin config default  → max_resolution (set in settings)
      *   3. hard-coded fallback   → '1080p'
+     *
+     * @param ?string $callervalue
+     * @return string
      */
 private function resolve_max_resolution(?string $callervalue): string {
     $allowed = ['480p', '720p', '1080p', '1440p', '2160p'];
@@ -278,7 +290,7 @@ private function resolve_max_resolution(?string $callervalue): string {
 
     /**
      * Assert drm gate.
-     */    private function assert_drm_gate(bool $drmrequired): void {
+     **/    private function assert_drm_gate(bool $drmrequired): void {
     if ($drmrequired && !feature_flag_service::instance()->drm_enabled()) {
         throw new drm_not_configured('drm_required_but_not_configured');
     }
@@ -286,7 +298,7 @@ private function resolve_max_resolution(?string $callervalue): string {
 
     /**
      * Dedup key.
-     */    private function dedup_key(int $userid, array $metadata): string {
+     **/    private function dedup_key(int $userid, array $metadata): string {
         $filename = (string)($metadata['filename'] ?? '');
         $size     = (int)($metadata['size'] ?? 0);
         $logical  = "upload:{$userid}:" . hash('sha256', $filename . '|' . $size);
@@ -297,6 +309,10 @@ private function resolve_max_resolution(?string $callervalue): string {
     /**
      * Dedup key for URL-pull sessions. Same (userid, source_url) within the
      * 60-second window returns the existing session_id with deduped=true.
+     *
+     * @param int $userid
+     * @param string $sourceurl
+     * @return string
      */
 private function dedup_key_url(int $userid, string $sourceurl): string {
     $logical = "urlpull:{$userid}:" . hash('sha256', $sourceurl);
@@ -305,7 +321,7 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * Owner hash.
-     */    private function owner_hash(int $userid): string {
+     **/    private function owner_hash(int $userid): string {
         $salt = (string)get_config('local_fastpix', 'user_hash_salt');
     if ($salt === '') {
         // The previous fallback was: generate a random salt + set_config.
@@ -329,7 +345,7 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * Lookup session.
-     */    private function lookup_session(int $id): ?\stdClass {
+     **/    private function lookup_session(int $id): ?\stdClass {
         global $DB;
         $row = $DB->get_record(self::TABLE, ['id' => $id]);
         return $row ?: null;
@@ -337,7 +353,7 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * Persist session.
-     */    private function persist_session(
+     **/    private function persist_session(
     int $userid,
     string $uploadid,
     string $uploadurl,
@@ -361,7 +377,7 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * Build response.
-     */    private function build_response(\stdClass $session, bool $deduped): \stdClass {
+     **/    private function build_response(\stdClass $session, bool $deduped): \stdClass {
         return (object)[
             'session_id' => (int)$session->id,
             'upload_id'  => (string)$session->upload_id,
@@ -373,10 +389,8 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
 
     /**
      * SSRF guard for user-supplied source URLs.
-     *
      * Threat model: we filter URLs that resolve to private/loopback/link-local
      * IPs from Moodle's resolver at submission time. This is defense in depth.
-     *
      * What this guard does NOT cover: FastPix-side DNS rebinding. Moodle
      * never directly fetches source_url — the gateway POSTs the URL inside
      * a JSON body to api.fastpix.io, and FastPix's backend fetches it later
@@ -385,9 +399,10 @@ private function dedup_key_url(int $userid, string $sourceurl): string {
      * is FastPix's to mitigate on their infrastructure; we filter obvious
      * abuse here so stale or compromised resolvers on the Moodle side
      * can't be used to probe FastPix's internal network.
-     *
      * Empirical audit 2026-05-06 (REVIEW DoD §31): zero direct-fetch sites
      * for source_url in the plugin source.
+     *
+     * @param string $url
      */
 private function assert_ssrf_safe(string $url): void {
     $parts = parse_url($url);
@@ -450,10 +465,11 @@ private function assert_ssrf_safe(string $url): void {
     /**
      * Assert that an IP literal (v4 or v6) is publicly routable. Throws
      * ssrf_blocked with a tag describing the family and reason.
-     *
      * Per @upload-service guardrail: explicit byte-pattern matching for
      * private IPv6 ranges, because PHP's FILTER_FLAG_NO_PRIV_RANGE /
      * NO_RES_RANGE flags do not reliably cover all IPv6 private ranges.
+     *
+     * @param string $ip
      */
 private function assert_ip_public(string $ip): void {
     // IPv4 path — preserves backward-compatible error tag 'blocked_ip:'.

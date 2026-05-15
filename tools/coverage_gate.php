@@ -16,21 +16,17 @@
 
 /**
  * Coverage gate parser.
- *
  * Reads a phpunit clover-format coverage report and enforces the per-class
  * architecture targets from .claude/docs/01-local-fastpix.md §11/§12 and
  * the project's coverage policy:
- *
  *   gateway              95%
  *   jwt_signing_service  95%
  *   verifier             90%
  *   projector            90%
  *   all other classes    85%
- *
  * Exits 0 if every class meets its target.
  * Exits 1 with a remediation report (one line per shortfall) otherwise.
  * Exits 2 on report-parse failure.
- *
  * Invoked by tools/coverage.sh; not meant to be run standalone.
  *
  * @package    local_fastpix

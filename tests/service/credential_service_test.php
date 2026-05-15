@@ -20,7 +20,6 @@ namespace local_fastpix\service;
  * Tests for the credential service.
  *
  * @covers \local_fastpix\service\credential_service
- *
  * @package    local_fastpix
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -43,7 +42,7 @@ final class credential_service_test extends \advanced_testcase {
 
     /**
      * Helper: gateway mock returning signing key.
-     */    private function gateway_mock_returning_signing_key(): \local_fastpix\api\gateway {
+     **/    private function gateway_mock_returning_signing_key(): \local_fastpix\api\gateway {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('create_signing_key')->willReturn((object)[
             'id'         => 'kid-test-1',

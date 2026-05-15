@@ -25,13 +25,9 @@ defined('LOCAL_FASTPIX_DEBUG_VERIFIER') || define('LOCAL_FASTPIX_DEBUG_VERIFIER'
 
 /**
  * Unit tests for the extracted webhook processor.
-
  *
-
  * @package    local_fastpix
-
  * @copyright  2026 FastPix Inc. <support@fastpix.io>
-
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class processor_test extends \advanced_testcase {
@@ -57,7 +53,7 @@ final class processor_test extends \advanced_testcase {
 
     /**
      * Helper: build event payload.
-     */    private function build_event_payload(?string $eventid = null): string {
+     **/    private function build_event_payload(?string $eventid = null): string {
         return json_encode([
             'id'         => $eventid ?? ('evt-' . random_string(8)),
             'type'       => 'video.media.created',
@@ -69,7 +65,7 @@ final class processor_test extends \advanced_testcase {
 
     /**
      * Helper: sign.
-     */    private function sign(string $payload, string $secret = self::SECRET): string {
+     **/    private function sign(string $payload, string $secret = self::SECRET): string {
         // Use the legacy raw-string + hex output format that verifier accepts.
         // When LOCAL_FASTPIX_DEBUG_VERIFIER is defined (test mode).
         return hash_hmac('sha256', $payload, $secret);
@@ -185,6 +181,8 @@ public function test_process_returns_duplicate_on_resubmitted_event_id(): void {
     /**
      * Rule W1: 200 unique event_ids each submitted twice in random order
      * yields exactly 200 ledger rows.
+     *
+     * @covers \local_fastpix
      */
 public function test_flood_with_50pct_duplicates_yields_unique_count(): void {
     global $DB;

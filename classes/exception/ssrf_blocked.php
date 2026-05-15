@@ -33,7 +33,7 @@ namespace local_fastpix\exception;
 class ssrf_blocked extends \moodle_exception {
     /**
      * Constructor.
-     */    public function __construct(string $context = '') {
+     **/    public function __construct(string $context = '') {
         parent::__construct('ssrf_blocked', 'local_fastpix', '', $context);
 }
 }

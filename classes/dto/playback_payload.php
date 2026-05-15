@@ -25,7 +25,6 @@ namespace local_fastpix\dto;
 
 /**
  * Public playback DTO returned from \local_fastpix\service\playback_service::resolve.
- *
  * Field names match ADR-013's documented consumer-contract surface exactly
  * (CC8). The four sibling plugins (mod_fastpix, filter_fastpix,
  * tinymce_fastpix, future viewer) consume this DTO directly — renaming a
@@ -38,7 +37,7 @@ namespace local_fastpix\dto;
 class playback_payload {
     /**
      * Constructor.
-     */    public function __construct(
+     **/    public function __construct(
     /** @var string Playbackid. */
     public readonly string $playbackid,
     /** @var string Playbacktoken. */
@@ -65,6 +64,12 @@ class playback_payload {
      * @param int       $ttlseconds JWT TTL in seconds.
      * @param ?string   $accentcolor Optional brand colour (CSS string) from the caller.
      * @param bool      $defaultshowcaptions Whether captions are on by default for this activity.
+     * @param \stdClass $asset
+     * @param string $jwt
+     * @param int $ttlseconds
+     * @param ?string $accentcolor
+     * @param bool $defaultshowcaptions
+     * @return self
      */
 public static function from_asset_and_jwt(
     \stdClass $asset,
