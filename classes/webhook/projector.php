@@ -46,7 +46,7 @@ class projector {
     /**
      * Constructor.
      */    public function __construct(?\core\lock\lock_factory $lockfactory = null) {
-        $this->lock_factory = $lockfactory
+        $this->lockfactory = $lockfactory
             ?? \core\lock\lock_config::get_lock_factory(self::LOCK_FACTORY);
 }
 
@@ -67,7 +67,7 @@ public function project(\stdClass $event): void {
     }
 
     $resource = 'asset_' . $fastpixid;
-    $lock     = $this->lock_factory->get_lock($resource, self::LOCK_WAIT_SECONDS);
+    $lock     = $this->lockfactory->get_lock($resource, self::LOCK_WAIT_SECONDS);
 
     if ($lock === false) {
         throw new lock_acquisition_failed('asset_' . $fastpixid);

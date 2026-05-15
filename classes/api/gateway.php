@@ -460,7 +460,7 @@ private function host_from_base(): string {
     /**
      * Breaker is open.
      */    private function breaker_is_open(string $key): bool {
-        $state = $this->breaker_cache->get($key);
+        $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         return false;
     }
@@ -470,7 +470,7 @@ private function host_from_base(): string {
     /**
      * Breaker record failure.
      */    private function breaker_record_failure(string $key): void {
-        $state = $this->breaker_cache->get($key);
+        $state = $this->breakercache->get($key);
     if (!is_array($state)) {
         $state = ['failures' => 0, 'open_until' => 0];
     }
@@ -478,13 +478,13 @@ private function host_from_base(): string {
     if ($state['failures'] >= self::BREAKER_THRESHOLD) {
         $state['open_until'] = time() + self::BREAKER_OPEN_SECONDS;
     }
-        $this->breaker_cache->set($key, $state);
+        $this->breakercache->set($key, $state);
 }
 
     /**
      * Breaker record success.
      */    private function breaker_record_success(string $key): void {
-        $this->breaker_cache->delete($key);
+        $this->breakercache->delete($key);
 }
 
     // Structured logging (no secrets).
