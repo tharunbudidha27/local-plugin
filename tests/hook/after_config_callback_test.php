@@ -1,7 +1,20 @@
 <?php
-namespace local_fastpix\hook;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix\hook;
 
 /**
  * Regression test for the page-render hot path contract on
@@ -12,17 +25,21 @@ defined('MOODLE_INTERNAL') || die();
  * throws guarantees that any future change to the handler that invokes
  * the gateway directly OR indirectly will surface immediately.
  */
-class after_config_callback_test extends \advanced_testcase {
-
+final class after_config_callback_test extends \advanced_testcase {
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \local_fastpix\api\gateway::reset();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         \local_fastpix\api\gateway::reset();
     }
 
+    /**
+     * @covers \local_fastpix\hook\after_config_callback
+     */
     public function test_handle_makes_no_gateway_calls(): void {
         $tripwire = $this->createMock(\local_fastpix\api\gateway::class);
         $tripwire->method('health_probe')
@@ -51,6 +68,9 @@ class after_config_callback_test extends \advanced_testcase {
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * @covers \local_fastpix\hook\after_config_callback
+     */
     public function test_handle_returns_in_under_10_milliseconds(): void {
         $hook = $this->getMockBuilder(\core\hook\after_config::class)
             ->disableOriginalConstructor()
@@ -58,12 +78,12 @@ class after_config_callback_test extends \advanced_testcase {
 
         $start = microtime(true);
         after_config_callback::handle($hook);
-        $elapsed_ms = (microtime(true) - $start) * 1000.0;
+        $elapsedms = (microtime(true) - $start) * 1000.0;
 
         $this->assertLessThan(
             10.0,
-            $elapsed_ms,
-            sprintf('after_config_callback::handle took %.2f ms; budget is 10 ms', $elapsed_ms)
+            $elapsedms,
+            sprintf('after_config_callback::handle took %.2f ms; budget is 10 ms', $elapsedms)
         );
     }
 }

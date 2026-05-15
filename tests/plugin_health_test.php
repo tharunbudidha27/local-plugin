@@ -1,7 +1,20 @@
 <?php
-namespace local_fastpix;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix;
 
 /**
  * Production-readiness static checks for local_fastpix.
@@ -22,10 +35,11 @@ defined('MOODLE_INTERNAL') || die();
  *
  * Each check is a separate test so a failure points at a single rule.
  */
-class plugin_health_test extends \advanced_testcase {
-
+final class plugin_health_test extends \advanced_testcase {
+    /** @var string */
     private const ROOT_RELATIVE = '/..';
 
+    /** Helper: plugin root. */
     private function plugin_root(): string {
         $root = realpath(__DIR__ . self::ROOT_RELATIVE);
         $this->assertNotFalse($root, 'plugin root not resolvable');
@@ -59,6 +73,9 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 1: no debug artefacts --------------------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_no_debug_artefacts_in_production_source(): void {
         $patterns = [
             '/\bvar_dump\s*\(/',
@@ -88,6 +105,9 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 2: no composer.json (M12) ----------------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_no_composer_json_in_plugin_root(): void {
         $this->assertFileDoesNotExist(
             $this->plugin_root() . '/composer.json',
@@ -98,12 +118,15 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 3: version.php sanity --------------------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_version_php_is_well_formed(): void {
-        $version_file = $this->plugin_root() . '/version.php';
-        $this->assertFileExists($version_file);
+        $versionfile = $this->plugin_root() . '/version.php';
+        $this->assertFileExists($versionfile);
 
         $plugin = new \stdClass();
-        require $version_file;
+        require $versionfile;
 
         $this->assertSame('local_fastpix', $plugin->component ?? null,
             'version.php $plugin->component must be local_fastpix');
@@ -121,13 +144,16 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 4: db/install.xml is valid XML -----------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_db_install_xml_is_valid(): void {
-        $xml_path = $this->plugin_root() . '/db/install.xml';
-        $this->assertFileExists($xml_path);
+        $xmlpath = $this->plugin_root() . '/db/install.xml';
+        $this->assertFileExists($xmlpath);
 
         $previous = libxml_use_internal_errors(true);
         try {
-            $doc = simplexml_load_file($xml_path);
+            $doc = simplexml_load_file($xmlpath);
             $errors = libxml_get_errors();
             libxml_clear_errors();
             $this->assertNotFalse($doc, 'install.xml failed to parse');
@@ -139,6 +165,9 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 5: db/services.php classnames exist ------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_db_services_classnames_resolve(): void {
         $functions = $this->load_db_array('services.php', 'functions');
         $missing = [];
@@ -160,6 +189,9 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 6: db/tasks.php classnames exist ---------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_db_tasks_classnames_resolve(): void {
         $tasks = $this->load_db_array('tasks.php', 'tasks');
         $missing = [];
@@ -181,6 +213,9 @@ class plugin_health_test extends \advanced_testcase {
 
     // -- Check 7: db/hooks.php callbacks resolve --------------------------
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_db_hooks_callbacks_resolve(): void {
         $callbacks = $this->load_db_array('hooks.php', 'callbacks');
         $missing = [];

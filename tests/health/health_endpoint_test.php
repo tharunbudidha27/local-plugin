@@ -1,7 +1,20 @@
 <?php
-namespace local_fastpix\health;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix\health;
 
 /**
  * Tests for the public health endpoint runner (C2).
@@ -11,9 +24,9 @@ defined('MOODLE_INTERNAL') || die();
  * with the gateway and rate-limiter as injectable dependencies via the
  * static-instance reflection pattern used elsewhere in this suite.
  */
-class health_endpoint_test extends \advanced_testcase {
-
+final class health_endpoint_test extends \advanced_testcase {
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \local_fastpix\api\gateway::reset();
         \local_fastpix\service\rate_limiter_service::reset();
@@ -21,10 +34,12 @@ class health_endpoint_test extends \advanced_testcase {
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         \local_fastpix\api\gateway::reset();
         \local_fastpix\service\rate_limiter_service::reset();
     }
 
+    /** Helper: inject gateway mock. */
     private function inject_gateway_mock($mock): void {
         $reflection = new \ReflectionClass(\local_fastpix\api\gateway::class);
         $prop = $reflection->getProperty('instance');
@@ -32,6 +47,9 @@ class health_endpoint_test extends \advanced_testcase {
         $prop->setValue(null, $mock);
     }
 
+    /**
+     * @covers \local_fastpix\health\runner
+     */
     public function test_health_returns_200_and_ok_status_on_probe_success(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('health_probe')->willReturn(true);
@@ -47,6 +65,9 @@ class health_endpoint_test extends \advanced_testcase {
         $this->assertIsInt($result['body']['timestamp']);
     }
 
+    /**
+     * @covers \local_fastpix\health\runner
+     */
     public function test_health_returns_503_when_probe_fails(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('health_probe')->willReturn(false);
@@ -59,6 +80,9 @@ class health_endpoint_test extends \advanced_testcase {
         $this->assertFalse($result['body']['fastpix_reachable']);
     }
 
+    /**
+     * @covers \local_fastpix\health\runner
+     */
     public function test_health_returns_503_and_does_not_throw_on_gateway_exception(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('health_probe')
@@ -76,6 +100,9 @@ class health_endpoint_test extends \advanced_testcase {
         $this->assertDebuggingCalled();
     }
 
+    /**
+     * @covers \local_fastpix\health\runner
+     */
     public function test_health_rate_limits_after_30_requests_per_minute(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('health_probe')->willReturn(true);
@@ -94,6 +121,9 @@ class health_endpoint_test extends \advanced_testcase {
         $this->assertNull($r['body']['fastpix_reachable']);
     }
 
+    /**
+     * @covers \local_fastpix\health\runner
+     */
     public function test_health_response_body_shape_is_stable(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('health_probe')->willReturn(true);

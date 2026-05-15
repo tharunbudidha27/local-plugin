@@ -1,7 +1,20 @@
 <?php
-namespace local_fastpix;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix;
 
 /**
  * Regression guard for REVIEW-2026-05-04 §S-1.
@@ -21,8 +34,8 @@ defined('MOODLE_INTERNAL') || die();
  *   - This test file itself (it inspects forbidden strings as data).
  *   - Anything under classes/vendor/ (vendored third-party code).
  */
-class no_crc32_regression_test extends \advanced_testcase {
-
+final class no_crc32_regression_test extends \advanced_testcase {
+    /** @var array */
     private const FORBIDDEN_PATTERNS = [
         "hash('crc32b'",
         'hash("crc32b"',
@@ -35,6 +48,9 @@ class no_crc32_regression_test extends \advanced_testcase {
         'tests/no_crc32_regression_test.php',
     ];
 
+    /**
+     * @covers \local_fastpix
+     */
     public function test_no_crc32_in_production_source(): void {
         $root = realpath(__DIR__ . '/..');
         $this->assertNotFalse($root, 'plugin root not found');

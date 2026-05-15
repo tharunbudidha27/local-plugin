@@ -1,55 +1,91 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\webhook;
 
-defined('MOODLE_INTERNAL') || die();
-
-class verifier_test extends \advanced_testcase {
-
+/**
+ * Tests for the webhook verifier.
+ *
+ * @covers \local_fastpix\webhook\verifier
+ */
+final class verifier_test extends \advanced_testcase {
     // Test fixtures must be ≥ verifier::MIN_SECRET_BYTES (32). Match the
     // install.php format: 64 hex chars from a fixed test seed (deterministic
     // for unit tests; install.php uses random_bytes() in production).
+    /** @var string */
     private const CURRENT  = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    /** @var string */
     private const PREVIOUS = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    /** @var string */
     private const BODY     = '{"type":"media.ready","object":{"id":"abc"}}';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         verifier::reset();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         verifier::reset();
     }
 
+    /** Helper: configure current. */
     private function configure_current(): void {
         set_config('webhook_secret_current', self::CURRENT, 'local_fastpix');
         set_config('webhook_secret_previous', '', 'local_fastpix');
         set_config('webhook_secret_rotated_at', 0, 'local_fastpix');
     }
 
+    /** Helper: sign. */
     private function sign(string $body, string $secret): string {
         return hash_hmac('sha256', $body, $secret);
     }
 
     // --- Happy / unhappy current secret ----------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_valid_current_secret_returns_true(): void {
         $this->configure_current();
         $sig = $this->sign(self::BODY, self::CURRENT);
         $this->assertTrue(verifier::instance()->verify(self::BODY, $sig));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_invalid_signature_returns_false(): void {
         $this->configure_current();
         $this->assertFalse(verifier::instance()->verify(self::BODY, str_repeat('0', 64)));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_empty_signature_header_returns_false(): void {
         $this->configure_current();
         $this->assertFalse(verifier::instance()->verify(self::BODY, ''));
         $this->assertDebuggingCalled('webhook signature verify: empty body or signature');
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_empty_body_returns_false(): void {
         $this->configure_current();
         $sig = $this->sign(self::BODY, self::CURRENT);
@@ -57,6 +93,9 @@ class verifier_test extends \advanced_testcase {
         $this->assertDebuggingCalled('webhook signature verify: empty body or signature');
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_no_current_secret_configured_returns_false(): void {
         set_config('webhook_secret_current', '', 'local_fastpix');
         $sig = $this->sign(self::BODY, self::CURRENT);
@@ -66,6 +105,9 @@ class verifier_test extends \advanced_testcase {
 
     // --- Rotation window -------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_previous_secret_within_30min_window_returns_true(): void {
         set_config('webhook_secret_current',
             'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
@@ -77,6 +119,9 @@ class verifier_test extends \advanced_testcase {
         $this->assertTrue(verifier::instance()->verify(self::BODY, $sig));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_previous_secret_after_30min_window_returns_false(): void {
         set_config('webhook_secret_current',
             'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
@@ -88,27 +133,36 @@ class verifier_test extends \advanced_testcase {
         $this->assertFalse(verifier::instance()->verify(self::BODY, $sig));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_no_previous_secret_returns_false(): void {
         $this->configure_current();
-        $garbage_sig = $this->sign(self::BODY, 'guessed-secret');
-        $this->assertFalse(verifier::instance()->verify(self::BODY, $garbage_sig));
+        $garbagesig = $this->sign(self::BODY, 'guessed-secret');
+        $this->assertFalse(verifier::instance()->verify(self::BODY, $garbagesig));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_rotated_at_zero_returns_false(): void {
         set_config('webhook_secret_current', self::CURRENT, 'local_fastpix');
         set_config('webhook_secret_previous', '', 'local_fastpix');
         set_config('webhook_secret_rotated_at', 0, 'local_fastpix');
 
-        $garbage_sig = $this->sign(self::BODY, 'something-else');
-        $this->assertFalse(verifier::instance()->verify(self::BODY, $garbage_sig));
+        $garbagesig = $this->sign(self::BODY, 'something-else');
+        $this->assertFalse(verifier::instance()->verify(self::BODY, $garbagesig));
     }
 
     // --- Robustness ------------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_does_not_throw_on_any_input(): void {
         $this->configure_current();
 
-        $bad_inputs = [
+        $badinputs = [
             ['', ''],
             ['', str_repeat('a', 64)],
             ['body', ''],
@@ -117,7 +171,7 @@ class verifier_test extends \advanced_testcase {
             [str_repeat('B', 1024 * 100), 'not-a-valid-sig'],
         ];
 
-        foreach ($bad_inputs as [$body, $sig]) {
+        foreach ($badinputs as [$body, $sig]) {
             $result = verifier::instance()->verify($body, $sig);
             $this->assertIsBool($result);
             // Discard any debug output triggered by this iteration; the test
@@ -126,6 +180,9 @@ class verifier_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_signature_constant_time_via_hash_equals(): void {
         $this->configure_current();
 
@@ -143,12 +200,18 @@ class verifier_test extends \advanced_testcase {
 
     // --- Singleton -------------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_singleton_returns_same_instance_across_calls(): void {
         $a = verifier::instance();
         $b = verifier::instance();
         $this->assertSame($a, $b);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_reset_clears_singleton(): void {
         $first = verifier::instance();
         verifier::reset();
@@ -158,17 +221,23 @@ class verifier_test extends \advanced_testcase {
 
     // ---- Canonical FastPix shape (production format) ---------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_canonical_base64_secret_with_base64_output(): void {
-        $raw_secret = random_bytes(32);
-        $configured = base64_encode($raw_secret);
+        $rawsecret = random_bytes(32);
+        $configured = base64_encode($rawsecret);
         set_config('webhook_secret_current', $configured, 'local_fastpix');
 
-        $sig = base64_encode(hash_hmac('sha256', self::BODY, $raw_secret, true));
+        $sig = base64_encode(hash_hmac('sha256', self::BODY, $rawsecret, true));
         $this->assertTrue(verifier::instance()->verify(self::BODY, $sig));
     }
 
     // ---- S7: 29m59s boundary ---------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_previous_secret_at_29m59s_returns_true(): void {
         set_config('webhook_secret_current',
             'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
@@ -182,6 +251,9 @@ class verifier_test extends \advanced_testcase {
 
     // ---- Short previous-secret during rotation window logs and rejects ---
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_verify_with_short_previous_secret_during_rotation_window_logs_and_rejects(): void {
         set_config('webhook_secret_current', self::CURRENT, 'local_fastpix');
         set_config('webhook_secret_previous', 'too-short', 'local_fastpix');
@@ -202,6 +274,9 @@ class verifier_test extends \advanced_testcase {
 
     // ---- Redaction canary (S2) -------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\verifier
+     */
     public function test_no_secret_in_log_on_short_secret(): void {
         $sentinel = 'Sn3tin3lSecretValueDoNotLeakMe';
         set_config('webhook_secret_current', $sentinel, 'local_fastpix');

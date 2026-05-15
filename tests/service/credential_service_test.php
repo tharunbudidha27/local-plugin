@@ -1,22 +1,43 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class credential_service_test extends \advanced_testcase {
-
+/**
+ * Tests for the credential service.
+ *
+ * @covers \local_fastpix\service\credential_service
+ */
+final class credential_service_test extends \advanced_testcase {
+    /** @var string */
     private const FAKE_PEM =
         "-----BEGIN PRIVATE KEY-----\nFAKEPEMCONTENT\n-----END PRIVATE KEY-----";
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         credential_service::reset();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         credential_service::reset();
     }
 
+    /** Helper: gateway mock returning signing key. */
     private function gateway_mock_returning_signing_key(): \local_fastpix\api\gateway {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('create_signing_key')->willReturn((object)[
@@ -29,11 +50,17 @@ class credential_service_test extends \advanced_testcase {
 
     // --- apikey / apisecret ----------------------------------------------
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_apikey_returns_configured_value(): void {
         set_config('apikey', 'sk-test-123', 'local_fastpix');
         $this->assertSame('sk-test-123', credential_service::instance()->apikey());
     }
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_apikey_throws_credentials_missing_when_empty(): void {
         try {
             credential_service::instance()->apikey();
@@ -43,11 +70,17 @@ class credential_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_apisecret_returns_configured_value(): void {
         set_config('apisecret', 'shh-very-secret', 'local_fastpix');
         $this->assertSame('shh-very-secret', credential_service::instance()->apisecret());
     }
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_apisecret_throws_credentials_missing_when_empty(): void {
         try {
             credential_service::instance()->apisecret();
@@ -59,6 +92,9 @@ class credential_service_test extends \advanced_testcase {
 
     // --- ensure_signing_key ----------------------------------------------
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_ensure_signing_key_is_idempotent_when_already_configured(): void {
         set_config('signing_key_id', 'pre-existing-kid', 'local_fastpix');
         set_config('signing_private_key', base64_encode(self::FAKE_PEM), 'local_fastpix');
@@ -74,6 +110,9 @@ class credential_service_test extends \advanced_testcase {
         $this->assertSame('pre-existing-kid', get_config('local_fastpix', 'signing_key_id'));
     }
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_ensure_signing_key_calls_gateway_when_not_configured(): void {
         set_config('signing_key_id', '', 'local_fastpix');
         set_config('signing_private_key', '', 'local_fastpix');
@@ -86,6 +125,9 @@ class credential_service_test extends \advanced_testcase {
         $this->assertNotEmpty(get_config('local_fastpix', 'signing_private_key'));
     }
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_ensure_signing_key_stores_pem_base64_encoded(): void {
         set_config('signing_key_id', '', 'local_fastpix');
         set_config('signing_private_key', '', 'local_fastpix');
@@ -101,6 +143,9 @@ class credential_service_test extends \advanced_testcase {
 
     // --- Redaction canary ------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\service\credential_service
+     */
     public function test_redaction_canary_no_pem_in_logs(): void {
         set_config('signing_key_id', '', 'local_fastpix');
         set_config('signing_private_key', '', 'local_fastpix');
@@ -113,17 +158,17 @@ class credential_service_test extends \advanced_testcase {
             $service = credential_service::instance();
             $service->set_gateway($this->gateway_mock_returning_signing_key());
             $service->ensure_signing_key();
-            $log_buffer = (string)file_get_contents($tmp);
+            $logbuffer = (string)file_get_contents($tmp);
         } finally {
             ini_set('error_log', $original);
             @unlink($tmp);
         }
 
-        $this->assertStringNotContainsString('FAKEPEMCONTENT', $log_buffer);
-        $this->assertStringNotContainsString('-----BEGIN', $log_buffer);
-        $this->assertStringNotContainsString(self::FAKE_PEM, $log_buffer);
+        $this->assertStringNotContainsString('FAKEPEMCONTENT', $logbuffer);
+        $this->assertStringNotContainsString('-----BEGIN', $logbuffer);
+        $this->assertStringNotContainsString(self::FAKE_PEM, $logbuffer);
 
         // The kid is fine to log — it is not a secret.
-        $this->assertStringContainsString('kid-test-1', $log_buffer);
+        $this->assertStringContainsString('kid-test-1', $logbuffer);
     }
 }

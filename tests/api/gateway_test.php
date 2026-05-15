@@ -1,14 +1,32 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\api;
 
 use GuzzleHttp\Psr7\Response;
 use local_fastpix\service\credential_service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class gateway_test extends \advanced_testcase {
-
+/**
+ * Tests for the gateway.
+ *
+ * @covers \local_fastpix\api\gateway
+ */
+final class gateway_test extends \advanced_testcase {
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         gateway::reset();
         \cache::make('local_fastpix', 'circuit_breaker')->purge();
@@ -17,6 +35,7 @@ class gateway_test extends \advanced_testcase {
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         gateway::reset();
     }
 
@@ -24,31 +43,32 @@ class gateway_test extends \advanced_testcase {
      * Build a gateway with mocked http_client and credential_service.
      * Constructor is private; use reflection to bypass it.
      */
-    private function build_gateway($http_mock, $credential_mock = null): gateway {
-        if ($credential_mock === null) {
-            $credential_mock = $this->createMock(credential_service::class);
-            $credential_mock->method('apikey')->willReturn('test-key');
-            $credential_mock->method('apisecret')->willReturn('test-secret');
+    private function build_gateway($httpmock, $credentialmock = null): gateway {
+        if ($credentialmock === null) {
+            $credentialmock = $this->createMock(credential_service::class);
+            $credentialmock->method('apikey')->willReturn('test-key');
+            $credentialmock->method('apisecret')->willReturn('test-secret');
         }
 
         $reflection = new \ReflectionClass(gateway::class);
         $instance = $reflection->newInstanceWithoutConstructor();
 
-        $http_prop = $reflection->getProperty('http');
-        $http_prop->setAccessible(true);
-        $http_prop->setValue($instance, $http_mock);
+        $httpprop = $reflection->getProperty('http');
+        $httpprop->setAccessible(true);
+        $httpprop->setValue($instance, $httpmock);
 
-        $breaker_prop = $reflection->getProperty('breaker_cache');
-        $breaker_prop->setAccessible(true);
-        $breaker_prop->setValue($instance, \cache::make('local_fastpix', 'circuit_breaker'));
+        $breakerprop = $reflection->getProperty('breaker_cache');
+        $breakerprop->setAccessible(true);
+        $breakerprop->setValue($instance, \cache::make('local_fastpix', 'circuit_breaker'));
 
-        $cred_prop = $reflection->getProperty('credentials');
-        $cred_prop->setAccessible(true);
-        $cred_prop->setValue($instance, $credential_mock);
+        $credprop = $reflection->getProperty('credentials');
+        $credprop->setAccessible(true);
+        $credprop->setValue($instance, $credentialmock);
 
         return $instance;
     }
 
+    /** Helper: http mock returning. */
     private function http_mock_returning(array $responses) {
         $mock = $this->createMock(\core\http_client::class);
         $mock->method('request')->willReturnOnConsecutiveCalls(...$responses);
@@ -57,6 +77,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- get_media -------------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_get_media_happy_returns_decoded_body(): void {
         $http = $this->http_mock_returning([
             new Response(200, [], json_encode(['id' => 'abc', 'status' => 'ready'])),
@@ -69,6 +92,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertSame('ready', $result->status);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_get_media_404_throws_gateway_not_found_immediately_no_retry(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -81,6 +107,9 @@ class gateway_test extends \advanced_testcase {
         $gateway->get_media('missing');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_get_media_500_retries_three_times_then_throws_gateway_unavailable(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->exactly(3))
@@ -95,6 +124,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- delete_media ----------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_delete_media_404_returns_silently(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -107,16 +139,19 @@ class gateway_test extends \advanced_testcase {
         $this->assertTrue(true); // no exception
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_delete_media_2xx_succeeds_with_idempotency_key_header(): void {
-        $captured_options = null;
+        $capturedoptions = null;
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
             ->method('request')
             ->with(
                 'DELETE',
                 $this->stringContains('/v1/on-demand/abc'),
-                $this->callback(function ($options) use (&$captured_options) {
-                    $captured_options = $options;
+                $this->callback(function ($options) use (&$capturedoptions) {
+                    $capturedoptions = $options;
                     return isset($options['headers']['Idempotency-Key'])
                         && strlen($options['headers']['Idempotency-Key']) === 64;
                 })
@@ -124,11 +159,14 @@ class gateway_test extends \advanced_testcase {
             ->willReturn(new Response(204, [], ''));
 
         $this->build_gateway($http)->delete_media('abc');
-        $this->assertNotNull($captured_options);
+        $this->assertNotNull($capturedoptions);
     }
 
     // ---- input_video_direct_upload --------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_input_video_direct_upload_includes_idempotency_key_on_post(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -145,6 +183,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- 429 retry-after -------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_429_honors_retry_after_header_clamped_to_3000ms(): void {
         // Two responses: 429 with Retry-After=10 (clamp would be 3s; we just verify the
         // retry loop continues, not the exact wall-clock delay), then 200.
@@ -158,15 +199,18 @@ class gateway_test extends \advanced_testcase {
 
         $start = microtime(true);
         $result = $this->build_gateway($http)->get_media('abc');
-        $elapsed_ms = (microtime(true) - $start) * 1000;
+        $elapsedms = (microtime(true) - $start) * 1000;
 
         $this->assertTrue($result->ok);
         // 10s would be ~10000ms; clamp must keep us well under 5s.
-        $this->assertLessThan(5000, $elapsed_ms, 'Retry-After was not clamped');
+        $this->assertLessThan(5000, $elapsedms, 'Retry-After was not clamped');
     }
 
     // ---- 4xx non-retryable ----------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_400_throws_immediately_without_retry(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -179,6 +223,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- Circuit breaker -------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_circuit_breaker_opens_after_5_consecutive_failures(): void {
         // Use 400 (non-retryable) so each call is one HTTP request and breaker_record_failure fires.
         $http = $this->createMock(\core\http_client::class);
@@ -207,6 +254,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertGreaterThan(time(), $state['open_until']);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_circuit_breaker_open_short_circuits_with_gateway_unavailable(): void {
         // Pre-load breaker as open. Cache key matches the gateway's hashing scheme
         // (simplekeys=true on MUC area 'circuit_breaker'). Per T1.1 — sha256/32
@@ -234,18 +284,27 @@ class gateway_test extends \advanced_testcase {
 
     // ---- health_probe ----------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_health_probe_returns_true_on_2xx(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willReturn(new Response(200, [], '{}'));
         $this->assertTrue($this->build_gateway($http)->health_probe());
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_health_probe_returns_false_on_5xx(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willReturn(new Response(503, [], ''));
         $this->assertFalse($this->build_gateway($http)->health_probe());
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_health_probe_returns_false_on_network_exception_never_throws(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willThrowException(new \RuntimeException('connect failed'));
@@ -256,6 +315,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- Timeout profiles ------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_get_media_uses_profile_hot_3s_timeouts(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -270,6 +332,9 @@ class gateway_test extends \advanced_testcase {
         $this->build_gateway($http)->get_media('abc');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_input_video_direct_upload_uses_profile_standard_5s_30s_timeouts(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -286,6 +351,9 @@ class gateway_test extends \advanced_testcase {
 
     // ---- Redaction canary ------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_request_logs_no_apikey_apisecret_or_jwt_pattern(): void {
         $cred = $this->createMock(credential_service::class);
         $cred->method('apikey')->willReturn('apikey-VERY-SECRET-VALUE');
@@ -303,23 +371,26 @@ class gateway_test extends \advanced_testcase {
 
         try {
             $this->build_gateway($http, $cred)->get_media('abc');
-            $log_buffer = (string)file_get_contents($tmp);
+            $logbuffer = (string)file_get_contents($tmp);
         } finally {
             ini_set('error_log', $original);
             @unlink($tmp);
         }
 
-        $this->assertStringNotContainsString('apikey-VERY-SECRET-VALUE', $log_buffer);
-        $this->assertStringNotContainsString('apisecret-EVEN-MORE-SECRET', $log_buffer);
-        $this->assertDoesNotMatchRegularExpression('/eyJ[A-Za-z0-9_-]{10,}/', $log_buffer);
+        $this->assertStringNotContainsString('apikey-VERY-SECRET-VALUE', $logbuffer);
+        $this->assertStringNotContainsString('apisecret-EVEN-MORE-SECRET', $logbuffer);
+        $this->assertDoesNotMatchRegularExpression('/eyJ[A-Za-z0-9_-]{10,}/', $logbuffer);
 
         // M2 — new structured fields must be present.
-        $this->assertStringContainsString('"request_id":"req_', $log_buffer);
-        $this->assertStringContainsString('"method":"GET"', $log_buffer);
-        $this->assertStringContainsString('"host":"api.fastpix.io"', $log_buffer);
-        $this->assertMatchesRegularExpression('#"path":"\\\\?/v1\\\\?/on-demand\\\\?/abc"#', $log_buffer);
+        $this->assertStringContainsString('"request_id":"req_', $logbuffer);
+        $this->assertStringContainsString('"method":"GET"', $logbuffer);
+        $this->assertStringContainsString('"host":"api.fastpix.io"', $logbuffer);
+        $this->assertMatchesRegularExpression('#"path":"\\\\?/v1\\\\?/on-demand\\\\?/abc"#', $logbuffer);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_request_id_propagated_as_x_request_id_header(): void {
         $captured = null;
         $http = $this->createMock(\core\http_client::class);
@@ -341,6 +412,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertMatchesRegularExpression('/^req_[A-Za-z0-9]{12}$/', (string)$captured);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_response_over_5mib_throws_gateway_invalid_response(): void {
         $oversize = 5 * 1024 * 1024 + 1;
         $http = $this->createMock(\core\http_client::class);
@@ -353,6 +427,9 @@ class gateway_test extends \advanced_testcase {
         $this->build_gateway($http)->get_media('asset-big');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_408_request_timeout_is_retried(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->exactly(3))
@@ -366,27 +443,38 @@ class gateway_test extends \advanced_testcase {
         $gateway->get_media('asset-408');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_breaker_state_visible_across_workers(): void {
         // Worker A — same endpoint 5 times so the per-endpoint counter trips.
-        $http_a = $this->createMock(\core\http_client::class);
-        $http_a->method('request')->willReturn(new Response(400, [], 'bad request'));
-        $gateway_a = $this->build_gateway($http_a);
+        $httpa = $this->createMock(\core\http_client::class);
+        $httpa->method('request')->willReturn(new Response(400, [], 'bad request'));
+        $gatewaya = $this->build_gateway($httpa);
         for ($i = 0; $i < 5; $i++) {
-            try { $gateway_a->delete_media('asset-same'); } catch (\Throwable $e) { /* expected */ }
+            try {
+                $gatewaya->delete_media('asset-same');
+            } catch (\Throwable $e) {
+                // Expected exception verified by the throw.
+                unset($e);
+            }
         }
 
         // Worker B — separate gateway instance, separate http mock; breaker
         // state is MUC-backed (W8) so worker B must see open and short-circuit.
         gateway::reset();
-        $http_b = $this->createMock(\core\http_client::class);
-        $http_b->expects($this->never())->method('request');
-        $gateway_b = $this->build_gateway($http_b);
+        $httpb = $this->createMock(\core\http_client::class);
+        $httpb->expects($this->never())->method('request');
+        $gatewayb = $this->build_gateway($httpb);
 
         $this->expectException(\local_fastpix\exception\gateway_unavailable::class);
         $this->expectExceptionMessageMatches('/circuit_open:/');
-        $gateway_b->delete_media('asset-same');
+        $gatewayb->delete_media('asset-same');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_decode_body_empty_response_returns_empty_object(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willReturn(new Response(200, [], ''));
@@ -394,6 +482,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertEquals(new \stdClass(), $result);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_decode_body_invalid_json_throws_gateway_invalid_response(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willReturn(new Response(200, [], 'totally not json'));
@@ -402,6 +493,9 @@ class gateway_test extends \advanced_testcase {
         $this->build_gateway($http)->get_media('bad-json');
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_decode_body_array_response_wrapped_in_data_object(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willReturn(new Response(200, [], json_encode(['a', 'b'])));
@@ -410,6 +504,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertSame(['a', 'b'], $result->data);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_429_with_missing_retry_after_falls_back_to_default(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->exactly(2))
@@ -422,6 +519,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertTrue((bool)($result->ok ?? false));
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_429_with_non_digit_retry_after_falls_back_to_default(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->exactly(2))
@@ -434,6 +534,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertTrue((bool)($result->ok ?? false));
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_body_snippet_truncates_long_response_bodies_in_exception(): void {
         $long = str_repeat('x', 1200);
         $http = $this->createMock(\core\http_client::class);
@@ -448,6 +551,9 @@ class gateway_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_create_signing_key_posts_to_iam_endpoint_with_idempotency_key(): void {
         $captured = null;
         $http = $this->createMock(\core\http_client::class);
@@ -471,6 +577,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertSame(64, strlen($captured['headers']['Idempotency-Key']));
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_delete_signing_key_targets_iam_endpoint_and_404_is_silent(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -487,6 +596,9 @@ class gateway_test extends \advanced_testcase {
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_media_create_from_url_posts_to_on_demand(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -510,6 +622,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertSame('m-url-1', $result->data->id);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_media_create_from_url_attaches_drm_config_when_drm(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->expects($this->once())
@@ -529,12 +644,18 @@ class gateway_test extends \advanced_testcase {
         );
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_health_probe_returns_false_on_throwing_http_client(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')->willThrowException(new \RuntimeException('network down'));
         $this->assertFalse($this->build_gateway($http)->health_probe());
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_network_exception_logs_attempt_with_status_code_zero(): void {
         $http = $this->createMock(\core\http_client::class);
         $http->method('request')
@@ -558,6 +679,9 @@ class gateway_test extends \advanced_testcase {
         $this->assertStringContainsString('"status_code":0', $log);
     }
 
+    /**
+     * @covers \local_fastpix\api\gateway
+     */
     public function test_breaker_recovers_after_successful_request(): void {
         // Mix of failures then a success — success must clear the breaker.
         $http = $this->createMock(\core\http_client::class);
@@ -569,7 +693,12 @@ class gateway_test extends \advanced_testcase {
             );
         $gateway = $this->build_gateway($http);
 
-        try { $gateway->delete_media('flaky'); } catch (\Throwable $e) { /* expected */ }
+        try {
+            $gateway->delete_media('flaky');
+        } catch (\Throwable $e) {
+            // Expected exception verified by the throw.
+            unset($e);
+        }
         // Same endpoint; second call succeeds — breaker counter must NOT trip.
         $gateway->delete_media('flaky');
 

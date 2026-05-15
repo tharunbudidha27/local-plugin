@@ -1,17 +1,37 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\webhook;
 
-defined('MOODLE_INTERNAL') || die();
-
-class projector_test extends \advanced_testcase {
-
+/**
+ * Tests for the webhook projector.
+ *
+ * @covers \local_fastpix\webhook\projector
+ */
+final class projector_test extends \advanced_testcase {
+    /** @var string */
     private const TABLE = 'local_fastpix_asset';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \cache::make('local_fastpix', 'asset')->purge();
     }
 
+    /** Helper: insert asset. */
     private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
@@ -37,12 +57,13 @@ class projector_test extends \advanced_testcase {
         return $row;
     }
 
-    private function build_event(string $type, string $fastpix_id, array $overrides = []): \stdClass {
+    /** Helper: build event. */
+    private function build_event(string $type, string $fastpixid, array $overrides = []): \stdClass {
         $defaults = [
             'id'         => 'evt-' . random_string(8),
             'type'       => $type,
             'occurredAt' => time(),
-            'object'     => (object)['type' => 'video.media', 'id' => $fastpix_id],
+            'object'     => (object)['type' => 'video.media', 'id' => $fastpixid],
             'data'       => new \stdClass(),
         ];
         foreach ($overrides as $k => $v) {
@@ -51,27 +72,33 @@ class projector_test extends \advanced_testcase {
         return (object)$defaults;
     }
 
-    private function ready_event(string $fastpix_id, array $playback_ids, array $extra_data = [], array $overrides = []): \stdClass {
-        $data = (object)array_merge(['playbackIds' => $playback_ids], $extra_data);
-        return $this->build_event('video.media.ready', $fastpix_id, array_merge(['data' => $data], $overrides));
+    /** Helper: ready event. */
+    private function ready_event(string $fastpixid, array $playbackids, array $extradata = [], array $overrides = []): \stdClass {
+        $data = (object)array_merge(['playbackIds' => $playbackids], $extradata);
+        return $this->build_event('video.media.ready', $fastpixid, array_merge(['data' => $data], $overrides));
     }
 
-    private function reflect_cache_key_fastpix(string $fastpix_id): string {
+    /** Helper: reflect cache key fastpix. */
+    private function reflect_cache_key_fastpix(string $fastpixid): string {
         $r = new \ReflectionClass(projector::class);
         $m = $r->getMethod('cache_key_fastpix');
         $m->setAccessible(true);
-        return $m->invoke(new projector(), $fastpix_id);
+        return $m->invoke(new projector(), $fastpixid);
     }
 
-    private function reflect_cache_key_playback(string $playback_id): string {
+    /** Helper: reflect cache key playback. */
+    private function reflect_cache_key_playback(string $playbackid): string {
         $r = new \ReflectionClass(projector::class);
         $m = $r->getMethod('cache_key_playback');
         $m->setAccessible(true);
-        return $m->invoke(new projector(), $playback_id);
+        return $m->invoke(new projector(), $playbackid);
     }
 
     // ============ A. Basic dispatch =====================================
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_video_media_created_inserts_new_row(): void {
         global $DB;
         $event = $this->build_event('video.media.created', 'media-new-1', [
@@ -88,6 +115,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame((int)$event->occurredAt, (int)$row->last_event_at);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_video_media_ready_updates_existing_row(): void {
         global $DB;
         $asset = $this->insert_asset(['fastpix_id' => 'media-r-1', 'status' => 'created']);
@@ -104,6 +134,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame(0, (int)$row->drm_required);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_video_media_ready_with_drm_sets_drm_required(): void {
         global $DB;
         $asset = $this->insert_asset(['fastpix_id' => 'media-drm-1']);
@@ -118,6 +151,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame('drm', $row->access_policy);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_video_media_failed_sets_status_errored(): void {
         global $DB;
         $asset = $this->insert_asset(['fastpix_id' => 'media-fail']);
@@ -129,6 +165,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame('errored', $row->status);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_video_media_deleted_sets_deleted_at(): void {
         global $DB;
         $asset = $this->insert_asset(['fastpix_id' => 'media-del']);
@@ -142,6 +181,9 @@ class projector_test extends \advanced_testcase {
 
     // ============ B. Total ordering =====================================
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_drops_older_event_when_last_event_at_is_newer(): void {
         global $DB;
         $asset = $this->insert_asset([
@@ -163,6 +205,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame(2000, (int)$row->last_event_at);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_applies_newer_event(): void {
         global $DB;
         $asset = $this->insert_asset([
@@ -183,6 +228,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame('errored', $row->status);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_drops_equal_timestamp_with_lex_smaller_event_id(): void {
         global $DB;
         $asset = $this->insert_asset([
@@ -203,6 +251,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame('evt-Z', $row->last_event_id);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_applies_equal_timestamp_with_lex_larger_event_id(): void {
         global $DB;
         $asset = $this->insert_asset([
@@ -222,6 +273,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame('evt-Z', $row->last_event_id);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_drops_same_event_id_idempotent(): void {
         global $DB;
         $asset = $this->insert_asset([
@@ -243,6 +297,9 @@ class projector_test extends \advanced_testcase {
 
     // ============ C. Locking ============================================
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_acquires_and_releases_lock_on_success(): void {
         $this->insert_asset(['fastpix_id' => 'media-lock-1']);
 
@@ -256,6 +313,9 @@ class projector_test extends \advanced_testcase {
         $lock->release();
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_releases_lock_when_handler_throws(): void {
         global $DB;
         // Pre-occupy a unique playback_id on a sibling row, so that when
@@ -283,20 +343,26 @@ class projector_test extends \advanced_testcase {
         $lock->release();
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_throws_lock_acquisition_failed_when_lock_unavailable(): void {
         $this->insert_asset(['fastpix_id' => 'media-lock-busy']);
 
-        $mock_factory = $this->createMock(\core\lock\lock_factory::class);
-        $mock_factory->method('get_lock')->willReturn(false);
+        $mockfactory = $this->createMock(\core\lock\lock_factory::class);
+        $mockfactory->method('get_lock')->willReturn(false);
 
         $this->expectException(\local_fastpix\exception\lock_acquisition_failed::class);
 
         $event = $this->build_event('video.media.failed', 'media-lock-busy');
-        (new projector($mock_factory))->project($event);
+        (new projector($mockfactory))->project($event);
     }
 
     // ============ D. Edge cases =========================================
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_skips_account_level_events_no_lock_no_db(): void {
         global $DB;
         $event = $this->build_event('video.live_stream.created', 'whatever', [
@@ -308,6 +374,9 @@ class projector_test extends \advanced_testcase {
         $this->assertSame(0, $DB->count_records(self::TABLE));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_warns_on_event_for_unknown_asset_non_insert_trigger(): void {
         global $DB;
         // `video.media.deleted` is not an insert trigger — must warn and drop.
@@ -319,28 +388,34 @@ class projector_test extends \advanced_testcase {
         $this->assertFalse($DB->record_exists(self::TABLE, ['fastpix_id' => 'media-unknown']));
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_project_invalidates_both_cache_keys_after_apply(): void {
         $this->insert_asset(['fastpix_id' => 'media-cache-inv', 'playback_id' => 'pb-cache']);
 
         $cache = \cache::make('local_fastpix', 'asset');
-        $fp_key = $this->reflect_cache_key_fastpix('media-cache-inv');
-        $pb_key = $this->reflect_cache_key_playback('pb-cache');
+        $fpkey = $this->reflect_cache_key_fastpix('media-cache-inv');
+        $pbkey = $this->reflect_cache_key_playback('pb-cache');
 
         // Warm both keys.
-        $cache->set($fp_key, (object)['stale' => true]);
-        $cache->set($pb_key, (object)['stale' => true]);
+        $cache->set($fpkey, (object)['stale' => true]);
+        $cache->set($pbkey, (object)['stale' => true]);
 
         $event = $this->ready_event('media-cache-inv', [
             (object)['id' => 'pb-cache', 'accessPolicy' => 'private'],
         ]);
         (new projector())->project($event);
 
-        $this->assertFalse($cache->get($fp_key));
-        $this->assertFalse($cache->get($pb_key));
+        $this->assertFalse($cache->get($fpkey));
+        $this->assertFalse($cache->get($pbkey));
     }
 
     // ---- W2: asset key is event.object.id, NOT event.data.id -------------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_wrong_field_yields_wrong_asset(): void {
         global $DB;
         $correct  = $this->insert_asset(['fastpix_id' => 'media-correct', 'status' => 'created']);
@@ -358,17 +433,20 @@ class projector_test extends \advanced_testcase {
         ];
         (new projector())->project($event);
 
-        $correct_after = $DB->get_record(self::TABLE, ['fastpix_id' => 'media-correct']);
-        $decoy_after   = $DB->get_record(self::TABLE, ['fastpix_id' => 'media-decoy']);
+        $correctafter = $DB->get_record(self::TABLE, ['fastpix_id' => 'media-correct']);
+        $decoyafter   = $DB->get_record(self::TABLE, ['fastpix_id' => 'media-decoy']);
 
-        $this->assertSame('ready', $correct_after->status);
-        $this->assertSame('pb-w2', $correct_after->playback_id);
-        $this->assertSame('created', $decoy_after->status);
-        $this->assertNull($decoy_after->playback_id);
+        $this->assertSame('ready', $correctafter->status);
+        $this->assertSame('pb-w2', $correctafter->playback_id);
+        $this->assertSame('created', $decoyafter->status);
+        $this->assertNull($decoyafter->playback_id);
     }
 
     // ---- Real-payload regressions: apply_first_playback_id accepts public --
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_real_video_media_created_with_public_playback_id_lands(): void {
         global $DB;
         $payload = json_decode(<<<'JSON'
@@ -383,6 +461,9 @@ JSON);
         $this->assertSame(0, (int)$row->drm_required);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_real_video_media_ready_public_policy_applies_playback_and_status(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-r-pub', 'playback_id' => null, 'access_policy' => 'private']);
@@ -400,6 +481,9 @@ JSON);
 
     // ---- parse_duration HH:MM:SS branch -----------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_parse_duration_handles_hhmmss_with_fractional_seconds(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-dur-frac', 'status' => 'created']);
@@ -411,6 +495,9 @@ JSON);
         $this->assertEqualsWithDelta(12.345, (float)$row->duration, 0.001);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_parse_duration_leaves_existing_value_when_unparseable(): void {
         global $DB;
         $this->insert_asset([
@@ -428,6 +515,9 @@ JSON);
 
     // ---- Caption tracks --------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_caption_tracks_set_has_captions_flag(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-cap', 'status' => 'created', 'has_captions' => 0]);
@@ -447,6 +537,9 @@ JSON);
 
     // ---- Newer event types ------------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_upload_media_created_applies_playback_id_and_sets_created_status(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-upmc', 'status' => 'waiting']);
@@ -462,6 +555,9 @@ JSON);
         $this->assertSame('public', $row->access_policy);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_media_upload_sets_status_from_data(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-upload', 'status' => '']);
@@ -473,6 +569,9 @@ JSON);
         $this->assertSame('waiting', $row->status);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_media_updated_applies_status_and_duration(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-upd', 'status' => 'created']);
@@ -487,6 +586,9 @@ JSON);
 
     // ---- Cold-start insert from non-`video.media.created` triggers --------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_upload_media_created_inserts_when_asset_absent(): void {
         global $DB;
         $fxid = 'media-cold-upmc';
@@ -502,6 +604,9 @@ JSON);
         $this->assertSame('public', $row->access_policy);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_media_ready_inserts_when_asset_absent(): void {
         global $DB;
         $fxid = 'media-cold-ready';
@@ -514,6 +619,9 @@ JSON);
         $this->assertSame('public', $row->access_policy);
     }
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_video_media_upload_for_unknown_asset_is_dropped(): void {
         global $DB;
         $event = $this->build_event('video.media.upload', 'media-cold-upload', [
@@ -526,6 +634,9 @@ JSON);
 
     // ---- Redaction canary (S2) -------------------------------------------
 
+    /**
+     * @covers \local_fastpix\webhook\projector
+     */
     public function test_no_secret_in_log_on_unknown_event_type(): void {
         $this->insert_asset(['fastpix_id' => 'media-unknown-type']);
         $event = $this->build_event('video.media.bogus_type', 'media-unknown-type');

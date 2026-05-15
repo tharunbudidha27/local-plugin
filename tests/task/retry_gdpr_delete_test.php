@@ -1,7 +1,20 @@
 <?php
-namespace local_fastpix\task;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix\task;
 
 /**
  * Boundary test for the GDPR-delete retry cap (T3.5).
@@ -12,20 +25,23 @@ defined('MOODLE_INTERNAL') || die();
  * side, but the local soft-delete is still in effect, so user data is
  * not visible to anyone.
  */
-class retry_gdpr_delete_test extends \advanced_testcase {
-
+final class retry_gdpr_delete_test extends \advanced_testcase {
+    /** @var string */
     private const TABLE = 'local_fastpix_asset';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \local_fastpix\api\gateway::reset();
         \cache::make('local_fastpix', 'asset')->purge();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         \local_fastpix\api\gateway::reset();
     }
 
+    /** Helper: inject failing gateway. */
     private function inject_failing_gateway(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('delete_media')
@@ -37,6 +53,7 @@ class retry_gdpr_delete_test extends \advanced_testcase {
         $prop->setValue(null, $mock);
     }
 
+    /** Helper: insert pending asset. */
     private function insert_pending_asset(int $attempts = 0): \stdClass {
         global $DB;
         $now = time();
@@ -63,6 +80,9 @@ class retry_gdpr_delete_test extends \advanced_testcase {
         return $row;
     }
 
+    /**
+     * @covers \local_fastpix\task\retry_gdpr_delete
+     */
     public function test_attempts_increments_on_each_failure(): void {
         global $DB;
         $this->inject_failing_gateway();
@@ -79,6 +99,9 @@ class retry_gdpr_delete_test extends \advanced_testcase {
             'pending flag must remain set on failure');
     }
 
+    /**
+     * @covers \local_fastpix\task\retry_gdpr_delete
+     */
     public function test_row_at_attempt_9_is_still_processed(): void {
         global $DB;
         $this->inject_failing_gateway();
@@ -96,6 +119,9 @@ class retry_gdpr_delete_test extends \advanced_testcase {
             'reaching MAX_ATTEMPTS must emit a CRITICAL log line');
     }
 
+    /**
+     * @covers \local_fastpix\task\retry_gdpr_delete
+     */
     public function test_row_at_cap_is_not_reprocessed(): void {
         global $DB;
         $this->inject_failing_gateway();
@@ -111,6 +137,9 @@ class retry_gdpr_delete_test extends \advanced_testcase {
             'attempts must NOT increment past cap');
     }
 
+    /**
+     * @covers \local_fastpix\task\retry_gdpr_delete
+     */
     public function test_success_clears_pending_flag(): void {
         global $DB;
 

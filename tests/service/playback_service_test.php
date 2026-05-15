@@ -1,17 +1,37 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class playback_service_test extends \advanced_testcase {
-
+/**
+ * Tests for the playback service.
+ *
+ * @covers \local_fastpix\service\playback_service
+ */
+final class playback_service_test extends \advanced_testcase {
+    /** @var string */
     private const TABLE = 'local_fastpix_asset';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \cache::make('local_fastpix', 'asset')->purge();
     }
 
+    /** Helper: bootstrap signing key. */
     private function bootstrap_signing_key(): void {
         // The fastest path: generate an RSA keypair in-process, store via
         // config so jwt_signing_service can mint without a gateway call.
@@ -21,6 +41,7 @@ class playback_service_test extends \advanced_testcase {
         set_config('signing_private_key', base64_encode($pem), 'local_fastpix');
     }
 
+    /** Helper: insert asset. */
     private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
@@ -47,6 +68,9 @@ class playback_service_test extends \advanced_testcase {
         return $row;
     }
 
+    /**
+     * @covers \local_fastpix\service\playback_service
+     */
     public function test_resolve_returns_payload_for_ready_asset(): void {
         $this->bootstrap_signing_key();
         $asset = $this->insert_asset();
@@ -59,11 +83,17 @@ class playback_service_test extends \advanced_testcase {
         $this->assertFalse($payload->drm_required);
     }
 
+    /**
+     * @covers \local_fastpix\service\playback_service
+     */
     public function test_resolve_throws_asset_not_found_for_missing(): void {
         $this->expectException(\local_fastpix\exception\asset_not_found::class);
         playback_service::resolve('media-nonexistent', 42);
     }
 
+    /**
+     * @covers \local_fastpix\service\playback_service
+     */
     public function test_resolve_throws_asset_not_found_for_soft_deleted(): void {
         $this->bootstrap_signing_key();
         $asset = $this->insert_asset(['deleted_at' => time() - 60]);
@@ -71,6 +101,9 @@ class playback_service_test extends \advanced_testcase {
         playback_service::resolve($asset->fastpix_id, 42);
     }
 
+    /**
+     * @covers \local_fastpix\service\playback_service
+     */
     public function test_resolve_throws_asset_not_ready_when_status_not_ready(): void {
         $this->bootstrap_signing_key();
         $asset = $this->insert_asset(['status' => 'created']);
@@ -78,6 +111,9 @@ class playback_service_test extends \advanced_testcase {
         playback_service::resolve($asset->fastpix_id, 42);
     }
 
+    /**
+     * @covers \local_fastpix\service\playback_service
+     */
     public function test_resolve_sets_drm_required_when_asset_is_drm(): void {
         $this->bootstrap_signing_key();
         $asset = $this->insert_asset(['drm_required' => 1, 'access_policy' => 'drm']);

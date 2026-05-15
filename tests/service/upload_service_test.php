@@ -1,13 +1,32 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class upload_service_test extends \advanced_testcase {
-
+/**
+ * Tests for the upload service.
+ *
+ * @covers \local_fastpix\service\upload_service
+ */
+final class upload_service_test extends \advanced_testcase {
+    /** @var string */
     private const TABLE = 'local_fastpix_upload_session';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         upload_service::reset();
         feature_flag_service::reset();
@@ -16,11 +35,13 @@ class upload_service_test extends \advanced_testcase {
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         upload_service::reset();
         feature_flag_service::reset();
         \local_fastpix\api\gateway::reset();
     }
 
+    /** Helper: inject gateway mock. */
     private function inject_gateway_mock($mock): void {
         $reflection = new \ReflectionClass(\local_fastpix\api\gateway::class);
         $prop = $reflection->getProperty('instance');
@@ -28,22 +49,27 @@ class upload_service_test extends \advanced_testcase {
         $prop->setValue(null, $mock);
     }
 
-    private function default_file_upload_response(string $upload_id = 'u1'): \stdClass {
+    /** Helper: default file upload response. */
+    private function default_file_upload_response(string $uploadid = 'u1'): \stdClass {
         return (object)['data' => (object)[
-            'uploadId' => $upload_id,
-            'url'      => 'https://up.fastpix.io/' . $upload_id,
+            'uploadId' => $uploadid,
+            'url'      => 'https://up.fastpix.io/' . $uploadid,
         ]];
     }
 
-    private function default_url_pull_response(string $media_id = 'media-pull-1'): \stdClass {
+    /** Helper: default url pull response. */
+    private function default_url_pull_response(string $mediaid = 'media-pull-1'): \stdClass {
         return (object)['data' => (object)[
-            'id'     => $media_id,
+            'id'     => $mediaid,
             'status' => 'preparing',
         ]];
     }
 
     // ============ A. File upload happy path =============================
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_inserts_session_and_returns_response(): void {
         global $DB;
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
@@ -60,15 +86,23 @@ class upload_service_test extends \advanced_testcase {
         $this->assertTrue($DB->record_exists(self::TABLE, ['upload_id' => 'u-happy']));
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_persists_owner_hash_metadata(): void {
         set_config('user_hash_salt', 'fixed-salt-for-test', 'local_fastpix');
-        $expected_hash = hash_hmac('sha256', '42', 'fixed-salt-for-test');
+        $expectedhash = hash_hmac('sha256', '42', 'fixed-salt-for-test');
 
         $captured = null;
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('input_video_direct_upload')
-            ->willReturnCallback(function ($owner_hash, $metadata, $access_policy, $drm_config_id) use (&$captured) {
-                $captured = compact('owner_hash', 'metadata', 'access_policy', 'drm_config_id');
+            ->willReturnCallback(function ($ownerhash, $metadata, $accesspolicy, $drmconfigid) use (&$captured) {
+                $captured = [
+                    'owner_hash'    => $ownerhash,
+                    'metadata'      => $metadata,
+                    'access_policy' => $accesspolicy,
+                    'drm_config_id' => $drmconfigid,
+                ];
                 return (object)['data' => (object)['uploadId' => 'u', 'url' => 'https://x']];
             });
         $this->inject_gateway_mock($mock);
@@ -77,12 +111,15 @@ class upload_service_test extends \advanced_testcase {
             42, ['filename' => 'b.mp4', 'size' => 200]
         );
 
-        $this->assertSame($expected_hash, $captured['owner_hash']);
-        $this->assertSame($expected_hash, $captured['metadata']['moodle_owner_userhash']);
+        $this->assertSame($expectedhash, $captured['owner_hash']);
+        $this->assertSame($expectedhash, $captured['metadata']['moodle_owner_userhash']);
         $this->assertArrayHasKey('moodle_site_url', $captured['metadata']);
         $this->assertStringNotContainsString('42', $captured['metadata']['moodle_owner_userhash']);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_throws_coding_exception_when_user_hash_salt_empty(): void {
         // Per T1.5 (REVIEW §4): the in-request salt-bootstrap fallback was
         // a race anti-pattern (concurrent first-uses produced different salts).
@@ -104,6 +141,9 @@ class upload_service_test extends \advanced_testcase {
 
     // ============ B. Deduplication ======================================
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_within_60s_returns_deduped_true(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->once())
@@ -123,6 +163,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertSame($first->session_id, $second->session_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_after_60s_creates_new_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->exactly(2))
@@ -148,6 +191,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertNotSame($first->session_id, $second->session_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_different_user_creates_new_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->exactly(2))
@@ -170,6 +216,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertNotSame($a->session_id, $b->session_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_different_filename_creates_new_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->exactly(2))
@@ -192,6 +241,9 @@ class upload_service_test extends \advanced_testcase {
 
     // ============ C. DRM gate ===========================================
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_drm_required_with_drm_disabled_throws(): void {
         set_config('feature_drm_enabled', 0, 'local_fastpix');
         set_config('drm_configuration_id', '', 'local_fastpix');
@@ -202,10 +254,15 @@ class upload_service_test extends \advanced_testcase {
 
         $this->expectException(\local_fastpix\exception\drm_not_configured::class);
         upload_service::instance()->create_file_upload_session(
-            42, ['filename' => 'a.mp4', 'size' => 100], drm_required: true
+            42,
+            ['filename' => 'a.mp4', 'size' => 100],
+            drm_required: true,
         );
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_file_upload_session_drm_required_with_drm_enabled_passes(): void {
         set_config('feature_drm_enabled', 1, 'local_fastpix');
         set_config('drm_configuration_id', 'cfg-1', 'local_fastpix');
@@ -213,14 +270,19 @@ class upload_service_test extends \advanced_testcase {
         $captured = null;
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('input_video_direct_upload')
-            ->willReturnCallback(function ($oh, $md, $access_policy, $drm_config_id) use (&$captured) {
-                $captured = compact('access_policy', 'drm_config_id');
+            ->willReturnCallback(function ($oh, $md, $accesspolicy, $drmconfigid) use (&$captured) {
+                $captured = [
+                    'access_policy' => $accesspolicy,
+                    'drm_config_id' => $drmconfigid,
+                ];
                 return (object)['data' => (object)['uploadId' => 'u-drm', 'url' => 'https://x']];
             });
         $this->inject_gateway_mock($mock);
 
         upload_service::instance()->create_file_upload_session(
-            42, ['filename' => 'a.mp4', 'size' => 100], drm_required: true
+            42,
+            ['filename' => 'a.mp4', 'size' => 100],
+            drm_required: true,
         );
 
         $this->assertSame('drm', $captured['access_policy']);
@@ -229,6 +291,9 @@ class upload_service_test extends \advanced_testcase {
 
     // ============ D. URL pull SSRF ======================================
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_https_public_ip_succeeds(): void {
         // 1.2.3.4 is a public IP literal; gethostbynamel returns it unchanged
         // and FILTER_VALIDATE_IP without restrictive flags accepts it.
@@ -242,6 +307,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertSame('m-pull-ok', $resp->upload_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_http_scheme(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -255,6 +323,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_credentials_in_url(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -270,6 +341,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_localhost(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -283,6 +357,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_dot_local_domain(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -292,6 +369,9 @@ class upload_service_test extends \advanced_testcase {
         upload_service::instance()->create_url_pull_session(42, 'https://myserver.local/v.mp4');
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_rfc1918_ip_directly(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -305,6 +385,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_loopback_ip_directly(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -318,6 +401,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_link_local_aws_metadata(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -331,6 +417,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_unresolvable_host(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -354,6 +443,9 @@ class upload_service_test extends \advanced_testcase {
     // were silently ignored. These IPv6 tests would have all been bypassed
     // before T1.3.
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_loopback(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -367,6 +459,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_ula_fd00(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -380,6 +475,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_ula_fc00(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -393,6 +491,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_link_local(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -406,6 +507,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_aws_metadata(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -419,6 +523,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv6_nat64(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->never())->method('media_create_from_url');
@@ -432,6 +539,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_rejects_ipv4_mapped_ipv6_with_private_v4(): void {
         // ::ffff:192.168.1.1 is RFC4291 IPv4-mapped IPv6; the embedded v4
         // is RFC1918 private and must be re-validated as IPv4 (recursive
@@ -449,6 +559,9 @@ class upload_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_allows_public_ipv6_literal(): void {
         // Cloudflare's public DNS server. If this is rejected, the IPv6
         // private-range checks are too aggressive and would break URL pull
@@ -466,6 +579,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertNotNull($result);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_url_pull_session_stores_source_url_not_upload_url(): void {
         global $DB;
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
@@ -484,6 +600,9 @@ class upload_service_test extends \advanced_testcase {
 
     // ============ M5: URL-pull dedup window ===============================
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_within_60s_returns_deduped_true(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->once())
@@ -503,6 +622,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertSame($first->session_id, $second->session_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_after_60s_creates_new_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->exactly(2))
@@ -527,6 +649,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertNotSame($first->session_id, $second->session_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_get_status_returns_dto_for_owners_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('input_video_direct_upload')
@@ -542,6 +667,9 @@ class upload_service_test extends \advanced_testcase {
         $this->assertSame('pending', $status->state);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_get_status_throws_asset_not_found_for_other_users_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('input_video_direct_upload')
@@ -556,11 +684,17 @@ class upload_service_test extends \advanced_testcase {
         upload_service::instance()->get_status($resp->session_id, 9999);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_get_status_throws_asset_not_found_for_unknown_session_id(): void {
         $this->expectException(\local_fastpix\exception\asset_not_found::class);
         upload_service::instance()->get_status(999999, 1);
     }
 
+    /**
+     * @covers \local_fastpix\service\upload_service
+     */
     public function test_create_url_pull_session_different_source_url_creates_new_session(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->expects($this->exactly(2))

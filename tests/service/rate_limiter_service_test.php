@@ -1,24 +1,47 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class rate_limiter_service_test extends \advanced_testcase {
-
+/**
+ * Tests for the rate limiter service.
+ *
+ * @covers \local_fastpix\service\rate_limiter_service
+ */
+final class rate_limiter_service_test extends \advanced_testcase {
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         rate_limiter_service::reset();
         \cache::make('local_fastpix', 'rate_limit')->purge();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         rate_limiter_service::reset();
     }
 
+    /** Helper: bucket key. */
     private function bucket_key(string $ip): string {
         return 'rl_' . substr(hash('sha256', $ip), 0, 32);
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_first_call_for_new_ip_returns_true(): void {
         $this->assertTrue(rate_limiter_service::instance()->allow('1.2.3.4'));
 
@@ -27,6 +50,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertObjectHasProperty('tokens', $bucket);
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_60_calls_in_a_burst_all_pass_at_default_limit(): void {
         $svc = rate_limiter_service::instance();
         for ($i = 0; $i < 60; $i++) {
@@ -34,6 +60,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_61st_call_in_burst_returns_false(): void {
         $svc = rate_limiter_service::instance();
         for ($i = 0; $i < 60; $i++) {
@@ -42,6 +71,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertFalse($svc->allow('6.6.6.6'));
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_with_custom_limit_5_burst_at_5_passes_6th_fails(): void {
         $svc = rate_limiter_service::instance();
         for ($i = 0; $i < 5; $i++) {
@@ -50,6 +82,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertFalse($svc->allow('7.7.7.7', 5));
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_returns_true_after_refill_via_clock_advance(): void {
         $ip = '8.8.8.8';
         $svc = rate_limiter_service::instance();
@@ -70,6 +105,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertTrue($svc->allow($ip));
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_separate_ips_have_separate_buckets(): void {
         $svc = rate_limiter_service::instance();
 
@@ -82,6 +120,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertTrue($svc->allow('10.0.0.2', 5));
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_uses_simplekey_compliant_cache_key(): void {
         rate_limiter_service::instance()->allow('11.11.11.11');
 
@@ -93,10 +134,13 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertNotFalse($bucket);
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_does_not_throw_on_any_input(): void {
         $svc = rate_limiter_service::instance();
 
-        $bad_inputs = [
+        $badinputs = [
             '',
             '0.0.0.0',
             '::1',
@@ -106,24 +150,33 @@ class rate_limiter_service_test extends \advanced_testcase {
             "; DROP TABLE x; --",
         ];
 
-        foreach ($bad_inputs as $ip) {
+        foreach ($badinputs as $ip) {
             $result = $svc->allow($ip);
             $this->assertIsBool($result);
         }
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_singleton_returns_same_instance(): void {
         $a = rate_limiter_service::instance();
         $b = rate_limiter_service::instance();
         $this->assertSame($a, $b);
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_reset_clears_singleton(): void {
         $first = rate_limiter_service::instance();
         rate_limiter_service::reset();
         $this->assertNotSame($first, rate_limiter_service::instance());
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_replaces_corrupt_cached_bucket_with_fresh_one(): void {
         $ip = '203.0.113.99';
         $key = 'rl_' . substr(hash('sha256', $ip), 0, 32);
@@ -131,6 +184,9 @@ class rate_limiter_service_test extends \advanced_testcase {
         $this->assertTrue(rate_limiter_service::instance()->allow($ip));
     }
 
+    /**
+     * @covers \local_fastpix\service\rate_limiter_service
+     */
     public function test_allow_replaces_object_missing_fields_with_fresh_bucket(): void {
         $ip = '203.0.113.100';
         $key = 'rl_' . substr(hash('sha256', $ip), 0, 32);

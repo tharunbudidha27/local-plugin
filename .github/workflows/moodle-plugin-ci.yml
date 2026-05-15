@@ -74,7 +74,6 @@ jobs:
 
       - name: Moodle code checker
         if: ${{ !cancelled() }}
-        continue-on-error: true
         run: moodle-plugin-ci codechecker --max-warnings 0
 
       - name: Validate plugin
@@ -95,6 +94,5 @@ jobs:
 
       - name: Coverage gate
         if: ${{ !cancelled() && matrix.php == '8.3' }}
-        continue-on-error: true
         working-directory: plugin
         run: bash tools/coverage.sh

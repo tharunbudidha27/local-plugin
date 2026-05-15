@@ -1,32 +1,51 @@
 <?php
-namespace local_fastpix\task;
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_fastpix\task;
 
 use local_fastpix\util\cache_keys;
 
 /**
  * Boundary test for the 7-day soft-delete hard-purge (rule W10).
  */
-class purge_soft_deleted_assets_test extends \advanced_testcase {
-
+final class purge_soft_deleted_assets_test extends \advanced_testcase {
+    /** @var string */
     private const ASSET_TABLE = 'local_fastpix_asset';
+    /** @var string */
     private const TRACK_TABLE = 'local_fastpix_track';
+    /** @var int */
     private const DAY = 86400;
+    /** @var int */
     private const HOUR = 3600;
+    /** @var int */
     private const MINUTE = 60;
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \cache::make('local_fastpix', 'asset')->purge();
     }
 
-    private function insert_asset(?int $deleted_at, ?string $playback_id = null): \stdClass {
+    /** Helper: insert asset. */
+    private function insert_asset(?int $deletedat, ?string $playbackid = null): \stdClass {
         global $DB;
         $now = time();
         $row = (object)[
             'fastpix_id'             => 'media-' . random_string(8),
-            'playback_id'            => $playback_id,
+            'playback_id'            => $playbackid,
             'owner_userid'           => 0,
             'title'                  => 'Test',
             'duration'               => null,
@@ -37,7 +56,7 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
             'has_captions'           => 0,
             'last_event_id'          => null,
             'last_event_at'          => null,
-            'deleted_at'             => $deleted_at,
+            'deleted_at'             => $deletedat,
             'gdpr_delete_pending_at' => null,
             'gdpr_delete_attempts'   => 0,
             'timecreated'            => $now - 30 * self::DAY,
@@ -47,10 +66,11 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         return $row;
     }
 
-    private function insert_track(int $asset_id): int {
+    /** Helper: insert track. */
+    private function insert_track(int $assetid): int {
         global $DB;
         return (int)$DB->insert_record(self::TRACK_TABLE, (object)[
-            'asset_id'     => $asset_id,
+            'asset_id'     => $assetid,
             'track_kind'   => 'subtitle',
             'lang'         => 'en',
             'status'       => 'ready',
@@ -58,12 +78,16 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         ]);
     }
 
+    /** Helper: run task. */
     private function run_task(): void {
         ob_start();
         (new purge_soft_deleted_assets())->execute();
         ob_end_clean();
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_purges_after_7_days_1_minute(): void {
         global $DB;
         $row = $this->insert_asset(time() - 7 * self::DAY - self::MINUTE);
@@ -71,6 +95,9 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         $this->assertFalse($DB->record_exists(self::ASSET_TABLE, ['id' => $row->id]));
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_keeps_at_6_days_23_hours(): void {
         global $DB;
         $row = $this->insert_asset(time() - 6 * self::DAY - 23 * self::HOUR);
@@ -78,6 +105,9 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         $this->assertTrue($DB->record_exists(self::ASSET_TABLE, ['id' => $row->id]));
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_keeps_active_assets_with_null_deleted_at(): void {
         global $DB;
         $row = $this->insert_asset(null);
@@ -85,6 +115,9 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         $this->assertTrue($DB->record_exists(self::ASSET_TABLE, ['id' => $row->id]));
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_cascade_deletes_local_fastpix_track_rows(): void {
         global $DB;
         $asset = $this->insert_asset(time() - 8 * self::DAY);
@@ -97,21 +130,27 @@ class purge_soft_deleted_assets_test extends \advanced_testcase {
         $this->assertFalse($DB->record_exists(self::ASSET_TABLE, ['id' => $asset->id]));
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_invalidates_both_cache_keys_on_purge(): void {
         $asset = $this->insert_asset(time() - 8 * self::DAY, 'pb-purge-' . random_string(6));
 
         $cache = \cache::make('local_fastpix', 'asset');
-        $fp_key = cache_keys::fastpix($asset->fastpix_id);
-        $pb_key = cache_keys::playback($asset->playback_id);
-        $cache->set($fp_key, (object)['stale' => true]);
-        $cache->set($pb_key, (object)['stale' => true]);
+        $fpkey = cache_keys::fastpix($asset->fastpix_id);
+        $pbkey = cache_keys::playback($asset->playback_id);
+        $cache->set($fpkey, (object)['stale' => true]);
+        $cache->set($pbkey, (object)['stale' => true]);
 
         $this->run_task();
 
-        $this->assertFalse($cache->get($fp_key));
-        $this->assertFalse($cache->get($pb_key));
+        $this->assertFalse($cache->get($fpkey));
+        $this->assertFalse($cache->get($pbkey));
     }
 
+    /**
+     * @covers \local_fastpix\task\purge_soft_deleted_assets
+     */
     public function test_batch_caps_per_run_and_leaves_remaining(): void {
         global $DB;
         $reflect = new \ReflectionClass(purge_soft_deleted_assets::class);

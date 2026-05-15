@@ -27,15 +27,32 @@ CLOVER_PATH="${BUILD_DIR}/coverage.xml"
 
 mkdir -p "${BUILD_DIR}"
 
-# In CI, moodle-plugin-ci sets up Moodle in the runner workspace and the
-# plugin is symlinked under local/fastpix; the moodle wwwroot root is then
-# the parent of $PLUGIN_DIR. In local dev (this repo), $PLUGIN_DIR is
-# already inside a Moodle tree. Either way, vendor/bin/phpunit lives at
-# the moodle root.
-MOODLE_ROOT="$(cd "${PLUGIN_DIR}/../.." && pwd -P)"
+# Resolve the Moodle root by trying known candidate paths in order, since
+# the layout differs between local dev and moodle-plugin-ci CI runs:
+#   1. $MOODLE_DIR env var (moodle-plugin-ci exports this in some configs)
+#   2. $PLUGIN_DIR/../..    — local dev: plugin lives at moodle/local/fastpix
+#   3. $PLUGIN_DIR/../moodle — CI: plugin is checked out under workspace
+#      root; moodle-plugin-ci installs Moodle into a sibling `moodle/` dir
+#   4. $GITHUB_WORKSPACE/moodle — GitHub Actions explicit fallback
+declare -a candidates=()
+[[ -n "${MOODLE_DIR:-}" ]]        && candidates+=("${MOODLE_DIR}")
+candidates+=("${PLUGIN_DIR}/../..")
+candidates+=("${PLUGIN_DIR}/../moodle")
+[[ -n "${GITHUB_WORKSPACE:-}" ]]  && candidates+=("${GITHUB_WORKSPACE}/moodle")
 
-if [[ ! -x "${MOODLE_ROOT}/vendor/bin/phpunit" ]]; then
-    echo "coverage.sh: vendor/bin/phpunit not found at ${MOODLE_ROOT}" >&2
+MOODLE_ROOT=""
+for cand in "${candidates[@]}"; do
+    if [[ -x "${cand}/vendor/bin/phpunit" ]]; then
+        MOODLE_ROOT="$(cd "${cand}" && pwd -P)"
+        break
+    fi
+done
+
+if [[ -z "${MOODLE_ROOT}" ]]; then
+    echo "coverage.sh: vendor/bin/phpunit not found in any candidate path:" >&2
+    for cand in "${candidates[@]}"; do
+        echo "  - ${cand}" >&2
+    done
     echo "Run from a properly bootstrapped Moodle install with phpunit configured." >&2
     exit 2
 fi

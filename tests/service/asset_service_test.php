@@ -1,19 +1,39 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 namespace local_fastpix\service;
 
-defined('MOODLE_INTERNAL') || die();
-
-class asset_service_test extends \advanced_testcase {
-
+/**
+ * Tests for the asset service.
+ *
+ * @covers \local_fastpix\service\asset_service
+ */
+final class asset_service_test extends \advanced_testcase {
+    /** @var string */
     private const TABLE = 'local_fastpix_asset';
 
     public function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         \cache::make('local_fastpix', 'asset')->purge();
         \local_fastpix\api\gateway::reset();
     }
 
     public function tearDown(): void {
+        parent::tearDown();
         \local_fastpix\api\gateway::reset();
     }
 
@@ -27,6 +47,7 @@ class asset_service_test extends \advanced_testcase {
         $prop->setValue(null, $mock);
     }
 
+    /** Helper: insert asset. */
     private function insert_asset(array $overrides = []): \stdClass {
         global $DB;
         $now = time();
@@ -52,6 +73,7 @@ class asset_service_test extends \advanced_testcase {
         return $row;
     }
 
+    /** Helper: gateway response. */
     private function gateway_response(array $overrides = []): \stdClass {
         return (object)['data' => (object)array_merge([
             'id'           => 'media-remote-1',
@@ -67,10 +89,16 @@ class asset_service_test extends \advanced_testcase {
 
     // ============ A. Read paths =========================================
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_returns_null_when_not_found(): void {
         $this->assertNull(asset_service::get_by_fastpix_id('does-not-exist'));
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_caches_db_row(): void {
         global $DB;
         $row = $this->insert_asset(['fastpix_id' => 'media-cache-1']);
@@ -86,11 +114,17 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('Test asset', $second->title);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_filters_soft_deleted_by_default(): void {
         $this->insert_asset(['fastpix_id' => 'media-soft-1', 'deleted_at' => time()]);
         $this->assertNull(asset_service::get_by_fastpix_id('media-soft-1'));
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_with_include_deleted_returns_soft_deleted(): void {
         $this->insert_asset(['fastpix_id' => 'media-soft-2', 'deleted_at' => time()]);
         $row = asset_service::get_by_fastpix_id('media-soft-2', true);
@@ -98,6 +132,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertNotEmpty($row->deleted_at);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_playback_id_returns_row(): void {
         $this->insert_asset(['fastpix_id' => 'media-pb-1', 'playback_id' => 'pb-lookup']);
         $row = asset_service::get_by_playback_id('pb-lookup');
@@ -105,6 +142,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('media-pb-1', $row->fastpix_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_id_returns_row_no_cache(): void {
         $inserted = $this->insert_asset();
         $row = asset_service::get_by_id($inserted->id);
@@ -112,6 +152,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame($inserted->fastpix_id, $row->fastpix_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_warms_playback_id_cache_too(): void {
         global $DB;
         $this->insert_asset(['fastpix_id' => 'media-warm-1', 'playback_id' => 'pb-warm-1']);
@@ -130,6 +173,9 @@ class asset_service_test extends \advanced_testcase {
 
     // ============ B. Lazy fetch =========================================
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_returns_existing_row_no_gateway_call(): void {
         $this->insert_asset(['fastpix_id' => 'media-existing']);
 
@@ -141,6 +187,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('media-existing', $row->fastpix_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_calls_gateway_on_cache_and_db_miss(): void {
         global $DB;
 
@@ -157,6 +206,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertTrue($DB->record_exists(self::TABLE, ['fastpix_id' => 'media-cold']));
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_inserts_with_sentinel_owner_userid_zero(): void {
         global $DB;
 
@@ -170,6 +222,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame(0, (int)$stored->owner_userid);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_throws_asset_not_found_on_gateway_404(): void {
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('get_media')
@@ -180,6 +235,9 @@ class asset_service_test extends \advanced_testcase {
         asset_service::get_by_fastpix_id_or_fetch('media-404');
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_extracts_first_private_playback_id(): void {
         global $DB;
 
@@ -200,6 +258,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('pb-1', $stored->playback_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_handles_drm_access_policy(): void {
         global $DB;
 
@@ -222,6 +283,9 @@ class asset_service_test extends \advanced_testcase {
 
     // ============ C. Race condition =====================================
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_get_by_fastpix_id_or_fetch_recovers_from_unique_race(): void {
         global $DB;
 
@@ -239,16 +303,16 @@ class asset_service_test extends \advanced_testcase {
         // "parallel worker"). The subsequent INSERT inside _or_fetch then
         // collides with the UNIQUE constraint and triggers the recovery path.
 
-        $self_test = $this;
+        $selftest = $this;
         $mock = $this->createMock(\local_fastpix\api\gateway::class);
         $mock->method('get_media')->willReturnCallback(
-            function ($fastpix_id) use ($self_test) {
-                $self_test->insert_asset([
-                    'fastpix_id'  => $fastpix_id,
+            function ($fastpixid) use ($selftest) {
+                $selftest->insert_asset([
+                    'fastpix_id'  => $fastpixid,
                     'title'       => 'Race-winner row',
                     'playback_id' => 'pb-race',
                 ]);
-                return $self_test->gateway_response(['id' => $fastpix_id]);
+                return $selftest->gateway_response(['id' => $fastpixid]);
             }
         );
         $this->inject_gateway_mock($mock);
@@ -262,6 +326,9 @@ class asset_service_test extends \advanced_testcase {
 
     // ============ D. Soft delete ========================================
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_soft_delete_sets_deleted_at_and_invalidates_cache(): void {
         global $DB;
         $row = $this->insert_asset(['fastpix_id' => 'media-del', 'playback_id' => 'pb-del']);
@@ -278,18 +345,21 @@ class asset_service_test extends \advanced_testcase {
         $cache = \cache::make('local_fastpix', 'asset');
         $reflection = new \ReflectionClass(asset_service::class);
 
-        $key_fp_method = $reflection->getMethod('cache_key_fastpix');
-        $key_fp_method->setAccessible(true);
-        $fp_key = $key_fp_method->invoke(null, 'media-del');
+        $keyfpmethod = $reflection->getMethod('cache_key_fastpix');
+        $keyfpmethod->setAccessible(true);
+        $fpkey = $keyfpmethod->invoke(null, 'media-del');
 
-        $key_pb_method = $reflection->getMethod('cache_key_playback');
-        $key_pb_method->setAccessible(true);
-        $pb_key = $key_pb_method->invoke(null, 'pb-del');
+        $keypbmethod = $reflection->getMethod('cache_key_playback');
+        $keypbmethod->setAccessible(true);
+        $pbkey = $keypbmethod->invoke(null, 'pb-del');
 
-        $this->assertFalse($cache->get($fp_key));
-        $this->assertFalse($cache->get($pb_key));
+        $this->assertFalse($cache->get($fpkey));
+        $this->assertFalse($cache->get($pbkey));
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_soft_delete_handles_missing_row_silently(): void {
         // Should not throw.
         asset_service::soft_delete(999999);
@@ -298,6 +368,9 @@ class asset_service_test extends \advanced_testcase {
 
     // ============ E. List operations ====================================
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_list_for_owner_default_returns_only_ready_status(): void {
         $this->insert_asset(['owner_userid' => 42, 'status' => 'ready', 'fastpix_id' => 'm-r1']);
         $this->insert_asset(['owner_userid' => 42, 'status' => 'preparing', 'fastpix_id' => 'm-p1']);
@@ -308,6 +381,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('m-r1', $rows[0]->fastpix_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_list_for_owner_excludes_soft_deleted(): void {
         $this->insert_asset(['owner_userid' => 7, 'fastpix_id' => 'm-live']);
         $this->insert_asset(['owner_userid' => 7, 'fastpix_id' => 'm-dead', 'deleted_at' => time()]);
@@ -317,6 +393,9 @@ class asset_service_test extends \advanced_testcase {
         $this->assertSame('m-live', $rows[0]->fastpix_id);
     }
 
+    /**
+     * @covers \local_fastpix\service\asset_service
+     */
     public function test_list_for_owner_paginated_with_search_filter(): void {
         $this->insert_asset(['owner_userid' => 5, 'title' => 'Lecture 1', 'fastpix_id' => 'm-l1']);
         $this->insert_asset(['owner_userid' => 5, 'title' => 'Lecture 2', 'fastpix_id' => 'm-l2']);
