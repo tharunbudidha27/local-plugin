@@ -25,7 +25,7 @@
 /**
  * Upgrade the local_fastpix schema.
  *
- * @param int \$oldversion The currently installed version.
+ * @param int $oldversion The currently installed version.
  * @return bool true on success.
  */
 function xmldb_local_fastpix_upgrade($oldversion) {

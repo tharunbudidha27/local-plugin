@@ -74,31 +74,33 @@ class gateway {
 
     /**
      * Constructor.
-     */    private function __construct(
-    /** @var mixed Http. */
-    private \core\http_client $http,
-    /** @var mixed Breakercache. */
-    private \cache_application $breakercache,
-    /** @var mixed Credentials. */
-    private credential_service $credentials,
-) {
-}
+     *
+     * @param \core\http_client $http The HTTP client used for FastPix requests.
+     * @param \cache_application $breakercache MUC cache holding circuit-breaker state.
+     * @param credential_service $credentials Credential lookup for apikey/apisecret.
+     */
+    private function __construct(
+        private \core\http_client $http,
+        private \cache_application $breakercache,
+        private credential_service $credentials,
+    ) {
+    }
 
     /**
      * Singleton accessor.
      *
      * @return self
      */
-public static function instance(): self {
-    if (self::$instance === null) {
-        self::$instance = new self(
-            new \core\http_client(),
-            \cache::make('local_fastpix', 'circuit_breaker'),
-            credential_service::instance(),
-        );
+    public static function instance(): self {
+        if (self::$instance === null) {
+            self::$instance = new self(
+                new \core\http_client(),
+                \cache::make('local_fastpix', 'circuit_breaker'),
+                credential_service::instance(),
+            );
+        }
+        return self::$instance;
     }
-    return self::$instance;
-}
 
     /**
      * Reset the singleton (used by tests).

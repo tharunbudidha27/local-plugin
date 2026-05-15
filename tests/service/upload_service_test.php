@@ -300,7 +300,7 @@ final class upload_service_test extends \advanced_testcase {
         upload_service::instance()->create_file_upload_session(
             42,
             ['filename' => 'a.mp4', 'size' => 100],
-            drmrequiredtrue,
+            drmrequired: true,
         );
     }
 
@@ -328,7 +328,7 @@ final class upload_service_test extends \advanced_testcase {
         upload_service::instance()->create_file_upload_session(
             42,
             ['filename' => 'a.mp4', 'size' => 100],
-            drmrequiredtrue,
+            drmrequired: true,
         );
 
         $this->assertSame('drm', $captured['access_policy']);

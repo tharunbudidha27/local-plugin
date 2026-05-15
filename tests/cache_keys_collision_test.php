@@ -71,7 +71,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
     /**
      * Test that no collisions at 100k synthetic uuids.
      *
-     * @covers \local_fastpix
+     * @covers \local_fastpix\util\cache_keys
      */
     public function test_no_collisions_at_100k_synthetic_uuids(): void {
         $keys = [];
@@ -96,7 +96,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
     /**
      * Same test on a different prefix to confirm the result isn't prefix-dependent.
      *
-     * @covers \local_fastpix
+     * @covers \local_fastpix\util\cache_keys
      */
     public function test_no_collisions_at_100k_with_pb_prefix(): void {
         $keys = [];
@@ -112,7 +112,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
     /**
      * Sanity check: confirm key length is exactly 32 hex chars + prefix.
      *
-     * @covers \local_fastpix
+     * @covers \local_fastpix\util\cache_keys
      */
     public function test_key_length_is_32_plus_prefix(): void {
         $key = $this->cache_key('fp_', 'any-input-string');
@@ -123,7 +123,7 @@ final class cache_keys_collision_test extends \advanced_testcase {
     /**
      * Sanity check: confirm same input always hashes to same key (determinism).
      *
-     * @covers \local_fastpix
+     * @covers \local_fastpix\util\cache_keys
      */
     public function test_hash_is_deterministic(): void {
         $input = 'd2188e1c-0000-4000-a000-000000000001';

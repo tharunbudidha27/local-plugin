@@ -191,7 +191,7 @@ final class processor_test extends \advanced_testcase {
      * Rule W1: 200 unique event_ids each submitted twice in random order
      * yields exactly 200 ledger rows.
      *
-     * @covers \local_fastpix
+     * @covers \local_fastpix\webhook\processor
      */
     public function test_flood_with_50pct_duplicates_yields_unique_count(): void {
         global $DB;

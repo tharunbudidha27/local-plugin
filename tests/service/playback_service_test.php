@@ -88,10 +88,10 @@ public function test_resolve_returns_payload_for_ready_asset(): void {
 
     $payload = playback_service::resolve($asset->fastpix_id, 42);
 
-    $this->assertSame($asset->playback_id, $payload->playback_id);
-    $this->assertNotEmpty($payload->playback_token);
-    $this->assertGreaterThan(time(), $payload->expires_at_ts);
-    $this->assertFalse($payload->drm_required);
+    $this->assertSame($asset->playbackid, $payload->playbackid);
+    $this->assertNotEmpty($payload->playbacktoken);
+    $this->assertGreaterThan(time(), $payload->expiresatts);
+    $this->assertFalse($payload->drmrequired);
 }
 
     /**
@@ -137,6 +137,6 @@ public function test_resolve_sets_drm_required_when_asset_is_drm(): void {
     $this->bootstrap_signing_key();
     $asset = $this->insert_asset(['drm_required' => 1, 'access_policy' => 'drm']);
     $payload = playback_service::resolve($asset->fastpix_id, 42);
-    $this->assertTrue($payload->drm_required);
+    $this->assertTrue($payload->drmrequired);
 }
 }
